@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { usePrivacy } from "@/lib/PrivacyContext";
 import {
   ArrowLeft, Sparkles, Eye, Percent, MoveUp,
   SlidersHorizontal, ChevronDown, Smartphone, Monitor, Tablet,
@@ -113,10 +114,11 @@ function TabBar({ tabs, active, onChange }: { tabs: string[]; active: string; on
   );
 }
 
-function DataTable({ title, rows, tabs }: {
+function DataTable({ title, rows, tabs, blur = false }: {
   title: string;
   rows: { label: string; clicks: number; impr: number; ctr: number; pos: number; cPct: number; iPct: number }[];
   tabs?: string[];
+  blur?: boolean;
 }) {
   const [tab, setTab] = useState("All");
   const sorted = tab === "Growing"
@@ -144,7 +146,9 @@ function DataTable({ title, rows, tabs }: {
           {sorted.slice(0, 8).map((r, i) => (
             <tr key={i} style={{ borderBottom: "1px solid #f3f4f6", background: i % 2 === 0 ? "#fafafa" : "#fff" }}>
               <td style={{ padding: "8px 0 8px 8px", color: "#374151", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} colSpan={0}>
-                {r.label}
+                <span style={blur ? { filter: "blur(5px)", userSelect: "none", transition: "filter 0.25s", display: "inline-block" } : { transition: "filter 0.25s" }}>
+                  {r.label}
+                </span>
               </td>
               <td style={{ padding: "8px 0", color: "#111", fontWeight: 500 }}>
                 {r.clicks}<Change pct={r.cPct} />
@@ -279,6 +283,10 @@ export default function SitePage() {
   const params = useParams();
   const router = useRouter();
   const domain = decodeURIComponent(params.id as string);
+  const { blur } = usePrivacy();
+  const blurStyle: React.CSSProperties = blur
+    ? { filter: "blur(6px)", userSelect: "none", transition: "filter 0.25s" }
+    : { transition: "filter 0.25s" };
 
   const [activeTab, setActiveTab] = useState("Dashboard");
   const [period, setPeriod]       = useState("7 days");
@@ -316,7 +324,7 @@ export default function SitePage() {
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} width={14} height={14} alt="" style={{ borderRadius: "2px" }} onError={e => ((e.target as HTMLImageElement).style.display = "none")} />
-            <span style={{ fontSize: "14px", fontWeight: 600 }}>{domain}</span>
+            <span style={{ fontSize: "14px", fontWeight: 600, ...blurStyle }}>{domain}</span>
           </div>
           <span style={{ margin: "0 24px", color: "#e5e7eb" }}>|</span>
           {/* Tab nav */}
@@ -420,8 +428,8 @@ export default function SitePage() {
 
         {/* Queries + Pages */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px" }}>
-          <DataTable title="Queries" rows={queryRows} tabs={["All", "Growing", "Decaying"]} />
-          <DataTable title="Pages"   rows={pageRows}  tabs={["All", "Growing", "Decaying"]} />
+          <DataTable title="Queries" rows={queryRows} tabs={["All", "Growing", "Decaying"]} blur={blur} />
+          <DataTable title="Pages"   rows={pageRows}  tabs={["All", "Growing", "Decaying"]} blur={blur} />
         </div>
 
         {/* Branded + Query Counting */}

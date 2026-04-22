@@ -3,6 +3,9 @@ import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageProvider";
 import ClientSessionProvider from "@/components/ClientSessionProvider";
 import DashboardShell from "@/components/DashboardShell";
+import { PrivacyProvider } from "@/lib/PrivacyContext";
+import { ThemeProvider } from "@/lib/ThemeContext";
+import { LayoutProvider } from "@/lib/LayoutContext";
 
 export const metadata: Metadata = {
   title: "SEO Gets Dashboard",
@@ -18,11 +21,17 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         <ClientSessionProvider>
-          <LanguageProvider>
-            <DashboardShell>
-              {children}
-            </DashboardShell>
-          </LanguageProvider>
+          <ThemeProvider>
+            <LayoutProvider>
+              <PrivacyProvider>
+                <LanguageProvider>
+                  <DashboardShell>
+                    {children}
+                  </DashboardShell>
+                </LanguageProvider>
+              </PrivacyProvider>
+            </LayoutProvider>
+          </ThemeProvider>
         </ClientSessionProvider>
       </body>
     </html>

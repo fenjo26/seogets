@@ -1,25 +1,677 @@
 "use client";
 
-import { usePathname } from "next/navigation";
-import Sidebar from "./Sidebar";
+import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
+import { useState } from "react";
+import { Settings, LogOut, BarChart2 } from "lucide-react";
+import { usePrivacy } from "@/lib/PrivacyContext";
+import { useTheme } from "@/lib/ThemeContext";
+import { useLayout } from "@/lib/LayoutContext";
 
-// Pages that should NOT show the sidebar (auth pages)
-const AUTH_PATHS = ["/login"];
+// ─── Popup menu helpers ───────────────────────────────────────────────────────
+function MenuItem({ icon, label, onClick }: { icon: string; label: string; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} style={{
+      display: "flex", alignItems: "center", gap: "10px",
+      padding: "9px 16px", fontSize: "13px", color: "var(--color-text-secondary)",
+      width: "100%", background: "transparent", border: "none", cursor: "pointer",
+      transition: "background 0.15s",
+    }}
+      onMouseOver={e => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "#fff"; }}
+      onMouseOut={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--color-text-secondary)"; }}
+    >
+      <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>{icon}</span>
+      {label}
+    </button>
+  );
+}
 
-export default function DashboardShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const isAuthPage = AUTH_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+function ToggleItem({ icon, label, defaultOn = false }: { icon: string; label: string; defaultOn?: boolean }) {
+  const [on, setOn] = useState(defaultOn);
+  return (
+    <button onClick={() => setOn(o => !o)} style={{
+      display: "flex", alignItems: "center", gap: "10px",
+      padding: "9px 16px", fontSize: "13px", color: "var(--color-text-secondary)",
+      width: "100%", background: "transparent", border: "none", cursor: "pointer",
+      transition: "background 0.15s",
+    }}
+      onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+      onMouseOut={e => e.currentTarget.style.background = "transparent"}
+    >
+      <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>{icon}</span>
+      <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+      <span style={{ fontSize: "11px", fontWeight: 600, color: on ? "#10B981" : "#6b7280" }}>{on ? "ON" : "OFF"}</span>
+    </button>
+  );
+}
 
-  if (isAuthPage) {
-    return <>{children}</>;
-  }
+function SelectItem({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <button style={{
+      display: "flex", alignItems: "center", gap: "10px",
+      padding: "9px 16px", fontSize: "13px", color: "var(--color-text-secondary)",
+      width: "100%", background: "transparent", border: "none", cursor: "pointer",
+      transition: "background 0.15s",
+    }}
+      onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+      onMouseOut={e => e.currentTarget.style.background = "transparent"}
+    >
+      <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>{icon}</span>
+      <span style={{ flex: 1, textAlign: "left" }}>{label}</span>
+      <span style={{ fontSize: "11px", fontWeight: 600, color: "#6b7280" }}>{value}</span>
+    </button>
+  );
+}
+
+// ─── Feedback / Help modal ────────────────────────────────────────────────────
+const USDT_ADDRESS = "TN7v2NArTXd5J2eMuGFpXmgzAFsoZpWcZu";
+
+function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [sent, setSent] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleSend = () => {
+    const msg = encodeURIComponent(`[Feedback] ${text}`);
+    window.open(`https://t.me/fenjo26?text=${msg}`, "_blank");
+    setSent(true);
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(USDT_ADDRESS).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
-    <div className="app-layout">
-      <Sidebar />
-      <main className="main-content">
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: 100,
+          background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
+        }}
+      />
+      {/* Panel */}
+      <div style={{
+        position: "fixed", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 101,
+        width: "420px", maxWidth: "calc(100vw - 32px)",
+        background: "var(--color-card)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "16px",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+        overflow: "hidden",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "20px 24px 16px",
+          borderBottom: "1px solid var(--color-border)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div>
+            <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-text-primary)" }}>
+              {mode === "feedback" ? "Give Feedback" : "Support the Developer"}
+            </div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
+              {mode === "feedback"
+                ? "Share your thoughts — I read everything"
+                : "Your support keeps this project alive"}
+            </div>
+          </div>
+          <button onClick={onClose} style={{
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: "rgba(255,255,255,0.06)", border: "none",
+            cursor: "pointer", fontSize: "14px", color: "var(--color-text-secondary)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>✕</button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: "20px 24px 24px" }}>
+
+          {/* ── FEEDBACK MODE ── */}
+          {mode === "feedback" && (
+            sent ? (
+              <div style={{ textAlign: "center", padding: "16px 0" }}>
+                <div style={{ fontSize: "32px", marginBottom: "10px" }}>🎉</div>
+                <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text-primary)" }}>
+                  Telegram opened!
+                </div>
+                <div style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginTop: "6px" }}>
+                  Your message is pre-filled — just hit send.
+                </div>
+                <button onClick={onClose} style={{
+                  marginTop: "20px", padding: "9px 24px",
+                  background: "var(--color-accent-purple)", color: "#fff",
+                  border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                  cursor: "pointer",
+                }}>Close</button>
+              </div>
+            ) : (
+              <>
+                <a
+                  href="https://t.me/fenjo26"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "12px 14px", borderRadius: "10px",
+                    background: "rgba(37,166,217,0.08)",
+                    border: "1px solid rgba(37,166,217,0.2)",
+                    textDecoration: "none", marginBottom: "16px",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseOver={e => (e.currentTarget.style.background = "rgba(37,166,217,0.14)")}
+                  onMouseOut={e => (e.currentTarget.style.background = "rgba(37,166,217,0.08)")}
+                >
+                  <span style={{ fontSize: "20px" }}>✈️</span>
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#29acd9" }}>@fenjo26</div>
+                    <div style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>Telegram · Usually replies fast</div>
+                  </div>
+                  <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--color-text-secondary)" }}>↗</span>
+                </a>
+                <textarea
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  placeholder="Bug, feature idea, something annoying..."
+                  rows={4}
+                  style={{
+                    width: "100%", resize: "none",
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "10px", padding: "12px 14px",
+                    fontSize: "13px", color: "var(--color-text-primary)",
+                    fontFamily: "inherit", outline: "none", lineHeight: "1.5",
+                    transition: "border-color 0.15s",
+                  }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "var(--color-accent-purple)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "var(--color-border)")}
+                />
+                <div style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "6px", marginBottom: "16px" }}>
+                  This will open Telegram with your message pre-filled.
+                </div>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button onClick={onClose} style={{
+                    flex: 1, padding: "9px",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "8px", fontSize: "13px",
+                    color: "var(--color-text-secondary)", cursor: "pointer",
+                  }}>Cancel</button>
+                  <button
+                    onClick={handleSend}
+                    disabled={!text.trim()}
+                    style={{
+                      flex: 2, padding: "9px",
+                      background: text.trim() ? "var(--color-accent-purple)" : "rgba(139,92,246,0.3)",
+                      border: "none", borderRadius: "8px",
+                      fontSize: "13px", fontWeight: 600, color: "#fff",
+                      cursor: text.trim() ? "pointer" : "not-allowed",
+                      transition: "background 0.15s",
+                    }}
+                  >Send Feedback →</button>
+                </div>
+              </>
+            )
+          )}
+
+          {/* ── THANKS / DONATE MODE ── */}
+          {mode === "thanks" && (
+            <>
+              {/* Story */}
+              <div style={{
+                padding: "14px 16px", borderRadius: "10px",
+                background: "rgba(139,92,246,0.07)",
+                border: "1px solid rgba(139,92,246,0.18)",
+                marginBottom: "20px",
+              }}>
+                <div style={{ fontSize: "22px", marginBottom: "8px" }}>👋</div>
+                <div style={{ fontSize: "13px", color: "var(--color-text-primary)", lineHeight: "1.6", fontWeight: 500 }}>
+                  Hey! I&apos;m an independent developer who built SEO Gets as a free tool for everyone.
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: "1.6", marginTop: "6px" }}>
+                  No VC funding, no team, no ads — just me and a lot of coffee. If this tool saves you time or money, a small donation means a lot and helps keep development going.
+                </div>
+              </div>
+
+              {/* USDT block */}
+              <div style={{ marginBottom: "8px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
+                  USDT · TRC-20 (Tron network)
+                </div>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: "8px",
+                  padding: "11px 14px",
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "10px",
+                }}>
+                  <span style={{ fontSize: "18px" }}>💚</span>
+                  <code style={{
+                    flex: 1, fontSize: "11.5px",
+                    color: "var(--color-text-primary)",
+                    fontFamily: "monospace", wordBreak: "break-all",
+                    lineHeight: "1.4",
+                  }}>
+                    {USDT_ADDRESS}
+                  </code>
+                  <button
+                    onClick={handleCopy}
+                    style={{
+                      flexShrink: 0,
+                      padding: "5px 12px",
+                      borderRadius: "6px",
+                      background: copied ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.07)",
+                      border: `1px solid ${copied ? "rgba(16,185,129,0.4)" : "var(--color-border)"}`,
+                      fontSize: "11px", fontWeight: 600,
+                      color: copied ? "#10B981" : "var(--color-text-secondary)",
+                      cursor: "pointer", transition: "all 0.2s",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {copied ? "✓ Copied" : "Copy"}
+                  </button>
+                </div>
+                <div style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "6px" }}>
+                  ⚠️ Only send USDT on the TRC-20 (Tron) network to this address.
+                </div>
+              </div>
+
+              <div style={{ height: "1px", background: "var(--color-border)", margin: "16px 0" }} />
+
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+                  Thank you — it really matters 🙏
+                </div>
+                <button onClick={onClose} style={{
+                  padding: "7px 20px",
+                  background: "var(--color-accent-purple)", color: "#fff",
+                  border: "none", borderRadius: "8px",
+                  fontSize: "13px", fontWeight: 600, cursor: "pointer",
+                }}>Close</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Chrome Extension modal ───────────────────────────────────────────────────
+function ChromeExtensionModal({ onClose }: { onClose: () => void }) {
+  const features = [
+    {
+      icon: "⚡",
+      title: "Instant Metric Retrieval",
+      desc: "Fetch and display essential page metrics and website properties from virtually any URL — right in your browser.",
+    },
+    {
+      icon: "📌",
+      title: "Effortless Annotations",
+      desc: "Add detailed annotations to any tracked property with a few clicks. Context is never lost.",
+    },
+    {
+      icon: "🚀",
+      title: "One-Click Dashboard",
+      desc: "Jump instantly to your full SEO Gets dashboard for comprehensive data, reporting, and advanced analysis.",
+    },
+  ];
+
+  return (
+    <>
+      <div onClick={onClose} style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)",
+      }} />
+      <div style={{
+        position: "fixed", top: "50%", left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 101,
+        width: "460px", maxWidth: "calc(100vw - 32px)",
+        background: "var(--color-card)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "16px",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.6)",
+        overflow: "hidden",
+      }}>
+        {/* Hero */}
+        <div style={{
+          padding: "28px 28px 24px",
+          background: "linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(59,130,246,0.08) 100%)",
+          borderBottom: "1px solid var(--color-border)",
+          position: "relative",
+        }}>
+          <button onClick={onClose} style={{
+            position: "absolute", top: "16px", right: "16px",
+            width: "28px", height: "28px", borderRadius: "50%",
+            background: "rgba(255,255,255,0.08)", border: "none",
+            cursor: "pointer", fontSize: "14px", color: "var(--color-text-secondary)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>✕</button>
+
+          {/* Chrome icon + badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "16px" }}>
+            <div style={{
+              width: "52px", height: "52px", borderRadius: "14px",
+              background: "linear-gradient(135deg, #8B5CF6, #3B82F6)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "26px", flexShrink: 0,
+            }}>🔗</div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "17px", fontWeight: 700, color: "var(--color-text-primary)" }}>
+                  SEO Gets Extension
+                </span>
+                <span style={{
+                  fontSize: "10px", fontWeight: 700,
+                  padding: "2px 7px", borderRadius: "100px",
+                  background: "rgba(139,92,246,0.2)", color: "#a78bfa",
+                  textTransform: "uppercase", letterSpacing: "0.05em",
+                }}>Chrome</span>
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "3px" }}>
+                Access your Search Console Analytics anywhere
+              </div>
+            </div>
+          </div>
+
+          <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: "1.6", margin: 0 }}>
+            Stop interrupting your workflow. The official SEO Gets Chrome Extension brings the power of our SEO analysis platform directly to your browser.
+          </p>
+        </div>
+
+        {/* Features */}
+        <div style={{ padding: "20px 28px" }}>
+          <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: "14px" }}>
+            Key Features
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+            {features.map(f => (
+              <div key={f.title} style={{
+                display: "flex", gap: "12px",
+                padding: "12px 14px", borderRadius: "10px",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid var(--color-border)",
+              }}>
+                <span style={{ fontSize: "18px", flexShrink: 0, marginTop: "1px" }}>{f.icon}</span>
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "3px" }}>
+                    {f.title}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: "1.5" }}>
+                    {f.desc}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button onClick={onClose} style={{
+              flex: 1, padding: "10px",
+              background: "rgba(255,255,255,0.05)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "9px", fontSize: "13px",
+              color: "var(--color-text-secondary)", cursor: "pointer",
+            }}>Close</button>
+            <button
+              onClick={() => window.open("https://chromewebstore.google.com/search/SEO%20Gets", "_blank")}
+              style={{
+                flex: 2, padding: "10px",
+                background: "linear-gradient(135deg, #8B5CF6, #3B82F6)",
+                border: "none", borderRadius: "9px",
+                fontSize: "13px", fontWeight: 700, color: "#fff",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="2"/>
+                <circle cx="12" cy="12" r="4" fill="white"/>
+                <path d="M12 8 L20.5 8" stroke="white" strokeWidth="2"/>
+                <path d="M6.8 17 L2.3 9" stroke="white" strokeWidth="2"/>
+                <path d="M17.2 17 L21.7 9" stroke="white" strokeWidth="2"/>
+              </svg>
+              Install from Chrome Web Store
+            </button>
+          </div>
+          <div style={{ fontSize: "11px", color: "var(--color-text-secondary)", textAlign: "center", marginTop: "10px" }}>
+            Designed for SEO professionals, marketers, and analysts
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Top bar ──────────────────────────────────────────────────────────────────
+function TopBar() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const { blur, setBlur } = usePrivacy();
+  const { dark, setDark } = useTheme();
+  const { layout, setLayout } = useLayout();
+  const [open, setOpen] = useState(false);
+  const [modal, setModal] = useState<"feedback" | "thanks" | null>(null);
+  const user = session?.user;
+
+  return (
+    <header style={{
+      position: "sticky", top: 0, zIndex: 40,
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "0 24px",
+      height: "48px",
+      background: "var(--color-bg)",
+      borderBottom: "1px solid var(--color-border)",
+    }}>
+      {/* Logo */}
+      <button onClick={() => router.push("/")} style={{
+        display: "flex", alignItems: "center", gap: "8px", cursor: "pointer",
+        background: "none", border: "none",
+      }}>
+        <div style={{
+          width: "24px", height: "24px", borderRadius: "6px",
+          background: "var(--color-accent-purple)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <BarChart2 size={14} color="#fff" />
+        </div>
+        <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)", letterSpacing: "-0.02em" }}>
+          SEO Gets
+        </span>
+      </button>
+
+      {/* Avatar */}
+      {user && (
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setOpen(o => !o)} style={{
+            width: "32px", height: "32px", borderRadius: "50%",
+            overflow: "hidden", border: "2px solid transparent",
+            cursor: "pointer", background: "none", padding: 0,
+            transition: "border-color 0.15s",
+          }}
+            onMouseOver={e => e.currentTarget.style.borderColor = "var(--color-accent-purple)"}
+            onMouseOut={e => { if (!open) e.currentTarget.style.borderColor = "transparent"; }}
+          >
+            {user.image ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={user.image} alt="avatar" width={32} height={32} style={{ display: "block" }} />
+            ) : (
+              <div style={{
+                width: "100%", height: "100%",
+                background: "var(--color-accent-purple)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "13px", fontWeight: 700, color: "var(--color-text-primary)",
+              }}>
+                {user.name?.[0]?.toUpperCase() ?? "?"}
+              </div>
+            )}
+          </button>
+
+          {open && (
+            <>
+              <div style={{ position: "fixed", inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+              <div style={{
+                position: "absolute", top: "calc(100% + 8px)", right: 0,
+                width: "240px",
+                background: "var(--color-card)", border: "1px solid var(--color-border)",
+                borderRadius: "12px", overflow: "hidden",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+                zIndex: 50,
+              }}>
+                {/* User info */}
+                <div style={{ padding: "14px 16px 12px", borderBottom: "1px solid var(--color-border)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    {user.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={user.image} alt="avatar" width={36} height={36} style={{ borderRadius: "50%" }} />
+                    ) : (
+                      <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--color-accent-purple)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: 700, color: "#fff" }}>
+                        {user.name?.[0]?.toUpperCase() ?? "?"}
+                      </div>
+                    )}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {user.name ?? "Account"}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {user.email}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ padding: "6px 0" }}>
+                  <MenuItem icon="⚙️" label="Settings" onClick={() => { setOpen(false); router.push("/settings"); }} />
+                </div>
+
+                <div style={{ height: "1px", background: "var(--color-border)" }} />
+
+                <div style={{ padding: "6px 0" }}>
+                  {/* Privacy Blur — controlled via global context */}
+                  <button onClick={() => setBlur(!blur)} style={{
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "9px 16px", fontSize: "13px",
+                    color: blur ? "#10B981" : "var(--color-text-secondary)",
+                    width: "100%", background: blur ? "rgba(16,185,129,0.06)" : "transparent",
+                    border: "none", cursor: "pointer", transition: "background 0.15s",
+                  }}
+                    onMouseOver={e => { if (!blur) e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                    onMouseOut={e => { if (!blur) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>📷</span>
+                    <span style={{ flex: 1, textAlign: "left" }}>Privacy Blur</span>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: blur ? "#10B981" : "#6b7280" }}>
+                      {blur ? "ON" : "OFF"}
+                    </span>
+                  </button>
+                  {/* Dark Mode — controlled via ThemeContext */}
+                  <button onClick={() => setDark(!dark)} style={{
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "9px 16px", fontSize: "13px",
+                    color: dark ? "#10B981" : "var(--color-text-secondary)",
+                    width: "100%", background: dark ? "rgba(16,185,129,0.06)" : "transparent",
+                    border: "none", cursor: "pointer", transition: "background 0.15s",
+                  }}
+                    onMouseOver={e => { if (!dark) e.currentTarget.style.background = "rgba(0,0,0,0.04)"; }}
+                    onMouseOut={e => { if (!dark) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>🌙</span>
+                    <span style={{ flex: 1, textAlign: "left" }}>Dark Mode</span>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: dark ? "#10B981" : "#6b7280" }}>
+                      {dark ? "ON" : "OFF"}
+                    </span>
+                  </button>
+                  {/* Layout — controlled via LayoutContext */}
+                  <button onClick={() => setLayout(layout === "wide" ? "default" : "wide")} style={{
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "9px 16px", fontSize: "13px",
+                    color: layout === "default" ? "#10B981" : "var(--color-text-secondary)",
+                    width: "100%", background: layout === "default" ? "rgba(16,185,129,0.06)" : "transparent",
+                    border: "none", cursor: "pointer", transition: "background 0.15s",
+                  }}
+                    onMouseOver={e => { if (layout !== "default") e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                    onMouseOut={e => { if (layout !== "default") e.currentTarget.style.background = "transparent"; }}
+                  >
+                    <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>⇥</span>
+                    <span style={{ flex: 1, textAlign: "left" }}>Layout</span>
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: layout === "default" ? "#10B981" : "#6b7280" }}>
+                      {layout === "wide" ? "Wide" : "Default"}
+                    </span>
+                  </button>
+                </div>
+
+                <div style={{ height: "1px", background: "var(--color-border)" }} />
+
+                <div style={{ padding: "6px 0" }}>
+                  <MenuItem icon="♡" label="Give Feedback" onClick={() => { setOpen(false); setModal("feedback"); }} />
+                  <MenuItem icon="🙏" label="Support Developer" onClick={() => { setOpen(false); setModal("thanks"); }} />
+                </div>
+
+                <div style={{ height: "1px", background: "var(--color-border)" }} />
+
+                <div style={{ padding: "6px 0" }}>
+                  <button onClick={() => signOut({ callbackUrl: "/login" })} style={{
+                    display: "flex", alignItems: "center", gap: "10px",
+                    padding: "9px 16px", fontSize: "13px", color: "#f87171",
+                    width: "100%", background: "transparent", border: "none", cursor: "pointer",
+                    transition: "background 0.15s",
+                  }}
+                    onMouseOver={e => e.currentTarget.style.background = "rgba(239,68,68,0.08)"}
+                    onMouseOut={e => e.currentTarget.style.background = "transparent"}
+                  >
+                    <LogOut size={14} />
+                    Sign out
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Feedback / Help modal */}
+      {modal && <FeedbackModal mode={modal} onClose={() => setModal(null)} />}
+    </header>
+  );
+}
+
+// ─── Shell ────────────────────────────────────────────────────────────────────
+const AUTH_PATHS = ["/login"];
+
+function Shell({ children }: { children: React.ReactNode }) {
+  const { layout } = useLayout();
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <TopBar />
+      <main style={{
+        flex: 1,
+        overflow: "auto",
+        ...(layout === "default" ? {
+          maxWidth: "1280px",
+          margin: "0 auto",
+          width: "100%",
+          padding: "0 24px",
+        } : {}),
+      }}>
         {children}
       </main>
     </div>
   );
+}
+
+export default function DashboardShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isAuthPage = AUTH_PATHS.some(p => pathname === p || pathname.startsWith(p + "/"));
+
+  if (isAuthPage) return <>{children}</>;
+
+  return <Shell>{children}</Shell>;
 }

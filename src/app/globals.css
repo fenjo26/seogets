@@ -1,33 +1,55 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-:root {
+/* ── Dark theme (default) ──────────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
   --color-bg: #121212;
   --color-card: #1e1e1e;
   --color-card-hover: #262626;
   --color-border: #2A2A2A;
-  
+
   --color-text-primary: #FFFFFF;
   --color-text-secondary: #A0A0A0;
-  
-  /* Accents - balanced and muted for SaaS */
+
   --color-accent-purple: #8B5CF6;
-  --color-accent-green: #10B981; 
+  --color-accent-green: #10B981;
   --color-accent-red: #EF4444;
   --color-accent-orange: #F59E0B;
   --color-accent-blue: #3B82F6;
-  
-  /* Semantic */
+
   --color-success: #10B981;
   --color-danger: #EF4444;
   --color-warning: #F59E0B;
-  
-  /* Utils */
+
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 20px;
-  
-  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+
+  --shadow-card: 0 4px 6px -1px rgba(0,0,0,0.5), 0 2px 4px -1px rgba(0,0,0,0.4);
+}
+
+/* ── Light theme ───────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg: #f4f5f7;
+  --color-card: #ffffff;
+  --color-card-hover: #f9fafb;
+  --color-border: #e5e7eb;
+
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+
+  --color-accent-purple: #7c3aed;
+  --color-accent-green: #059669;
+  --color-accent-red: #dc2626;
+  --color-accent-orange: #d97706;
+  --color-accent-blue: #2563eb;
+
+  --color-success: #059669;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
 }
 
 * {
@@ -43,6 +65,12 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Theme transition on key elements */
+.card, header, aside, main, nav, section, footer {
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 a {
@@ -58,28 +86,14 @@ button {
 }
 
 /* Layout Utilities */
-.app-layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  min-height: 100vh;
-}
-
-.sidebar {
-  background-color: var(--color-bg);
-  border-right: 1px solid var(--color-border);
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
 .main-content {
-  padding: 32px 48px;
+  padding: 28px 32px;
   display: flex;
   flex-direction: column;
-  gap: 32px;
-  height: 100vh;
-  overflow-y: auto;
+  gap: 24px;
+  max-width: 1600px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* Typography Utilities */

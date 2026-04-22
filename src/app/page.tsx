@@ -10,6 +10,7 @@ import {
   Download, Tag, X,
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
+import { usePrivacy } from "@/lib/PrivacyContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Metric = "clicks" | "impressions" | "ctr" | "position";
@@ -372,7 +373,7 @@ export default function PortfolioPage() {
   const [sites, setSites]       = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState("");
-  const [blur, setBlur]         = useState(false);
+  const { blur } = usePrivacy();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const router = useRouter();
   const [hidden,    setHidden]    = useState<Set<string>>(new Set());
@@ -576,7 +577,7 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:"24px"}}>
+    <div className="main-content">
       {/* Toolbar */}
       <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
         <div style={{position:"relative",flex:"1 1 180px"}}>
@@ -603,11 +604,6 @@ export default function PortfolioPage() {
             );
           })}
         </div>
-
-        {/* Privacy */}
-        <button onClick={()=>setBlur(b=>!b)} title="Privacy Blur" style={{display:"flex",alignItems:"center",justifyContent:"center",width:"34px",height:"34px",borderRadius:"8px",cursor:"pointer",border:`1px solid ${blur?"#10B981":"var(--color-border)"}`,background:blur?"rgba(16,185,129,0.1)":"var(--color-card)",color:blur?"#10B981":"var(--color-text-secondary)"}}>
-          {blur?<EyeOff size={14}/>:<Eye size={14}/>}
-        </button>
 
         {PeriodDd}
       </div>
