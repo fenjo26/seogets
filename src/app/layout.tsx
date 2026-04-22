@@ -10,6 +10,9 @@ import { LayoutProvider } from "@/lib/LayoutContext";
 export const metadata: Metadata = {
   title: "SEO Gets Dashboard",
   description: "Advanced Search Console Analytics without Limits",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
@@ -18,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html lang="en" suppressHydrationWarning>
+      <body className="antialiased" suppressHydrationWarning>
         <ClientSessionProvider>
           <ThemeProvider>
             <LayoutProvider>

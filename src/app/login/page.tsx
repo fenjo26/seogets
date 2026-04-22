@@ -1,11 +1,13 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { BarChart2 } from "lucide-react";
+import { TrendingUp, Globe, Shield, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/lib/ThemeContext";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 function GoogleIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
       <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
       <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" fill="#34A853"/>
       <path d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.548 0 9s.348 2.825.957 4.039l3.007-2.332z" fill="#FBBC05"/>
@@ -14,78 +16,234 @@ function GoogleIcon() {
   );
 }
 
+const content = {
+  en: {
+    tagline: "Your personal",
+    highlight: "Search Console",
+    tagline2: "command center",
+    sub: "All your Google accounts, all your sites — one clean dashboard. No limits, no noise, no subscription.",
+    features: [
+      { title: "All accounts in one place", desc: "Connect multiple Google accounts and see all your GSC properties on a single dashboard." },
+      { title: "Traffic at a glance", desc: "Sparkline charts for every site. Instantly spot winners, drops, and trends." },
+      { title: "Your data, your server", desc: "Self-hosted. Your Search Console data never leaves your VPS." },
+    ],
+    getStarted: "Get started",
+    signInSub: "Sign in with your Google account. The first account becomes the owner of this dashboard.",
+    signIn: "Sign in with Google",
+    bullets: ["Google OAuth only — no passwords", "Connect multiple Google accounts", "Self-hosted on your VPS"],
+  },
+  ru: {
+    tagline: "Твой личный",
+    highlight: "Search Console",
+    tagline2: "командный центр",
+    sub: "Все Google аккаунты, все сайты — одна чистая панель. Без лимитов, без шума, без подписки.",
+    features: [
+      { title: "Все аккаунты в одном месте", desc: "Подключи несколько Google аккаунтов и смотри все GSC-сайты на одном экране." },
+      { title: "Трафик с первого взгляда", desc: "Мини-графики для каждого сайта. Сразу видно рост, падения и тренды." },
+      { title: "Твои данные, твой сервер", desc: "Self-hosted. Данные Search Console никуда не уходят с твоего VPS." },
+    ],
+    getStarted: "Войти",
+    signInSub: "Войди через Google аккаунт. Первый аккаунт становится владельцем этого дашборда.",
+    signIn: "Войти через Google",
+    bullets: ["Только Google OAuth — никаких паролей", "Можно подключить несколько аккаунтов", "Self-hosted на вашем VPS"],
+  },
+};
+
+const featureIcons = [
+  <Globe size={18} key="globe" />,
+  <TrendingUp size={18} key="trend" />,
+  <Shield size={18} key="shield" />,
+];
+
 export default function LoginPage() {
+  const { dark, setDark } = useTheme();
+  const { language, setLanguage } = useLanguage();
+  const c = content[language];
+
   return (
     <div style={{
       minHeight: "100vh",
       display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
       background: "var(--color-bg)",
-      padding: "24px",
+      overflow: "hidden",
+      position: "relative",
     }}>
-      {/* Background glow */}
+      {/* ── Top-right controls ── */}
       <div style={{
-        position: "fixed", top: "20%", left: "50%", transform: "translateX(-50%)",
-        width: "600px", height: "400px", borderRadius: "50%",
-        background: "radial-gradient(ellipse, rgba(139,92,246,0.12) 0%, transparent 70%)",
-        pointerEvents: "none",
-      }} />
-
-      <div style={{ width: "100%", maxWidth: "400px", position: "relative", zIndex: 1 }}>
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "40px" }}>
-          <div style={{
-            display: "inline-flex", alignItems: "center", justifyContent: "center",
-            width: "56px", height: "56px", borderRadius: "14px",
-            background: "var(--color-accent-purple)",
-            marginBottom: "16px",
-          }}>
-            <BarChart2 size={28} color="#fff" />
-          </div>
-          <h1 style={{ fontSize: "28px", fontWeight: 700, letterSpacing: "-0.03em", color: "#fff" }}>
-            SEO Gets
-          </h1>
-          <p className="title-sm" style={{ marginTop: "8px" }}>
-            Your personal Google Search Console dashboard
-          </p>
+        position: "fixed", top: "16px", right: "20px",
+        display: "flex", alignItems: "center", gap: "8px",
+        zIndex: 10,
+      }}>
+        {/* Language toggle */}
+        <div style={{
+          display: "flex", alignItems: "center",
+          background: "var(--color-card)",
+          border: "1px solid var(--color-border)",
+          borderRadius: "8px", overflow: "hidden",
+        }}>
+          {(["en", "ru"] as const).map(lang => (
+            <button
+              key={lang}
+              onClick={() => setLanguage(lang)}
+              style={{
+                padding: "6px 12px",
+                fontSize: "12px", fontWeight: 600,
+                border: "none", cursor: "pointer",
+                background: language === lang ? "var(--color-accent-purple)" : "transparent",
+                color: language === lang ? "#fff" : "var(--color-text-secondary)",
+                transition: "all 0.15s",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {lang}
+            </button>
+          ))}
         </div>
 
-        {/* Card */}
-        <div className="card" style={{ padding: "36px 32px", textAlign: "center" }}>
-          <p style={{ fontSize: "14px", color: "var(--color-text-secondary)", marginBottom: "28px", lineHeight: 1.6 }}>
-            Sign in with your Google account to access<br />all your Search Console properties.
+        {/* Theme toggle */}
+        <button
+          onClick={() => setDark(!dark)}
+          style={{
+            display: "flex", alignItems: "center", gap: "6px",
+            padding: "6px 12px",
+            background: "var(--color-card)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "8px",
+            fontSize: "12px", fontWeight: 600,
+            color: "var(--color-text-secondary)",
+            cursor: "pointer", transition: "all 0.15s",
+          }}
+          onMouseOver={e => e.currentTarget.style.borderColor = "var(--color-accent-purple)"}
+          onMouseOut={e => e.currentTarget.style.borderColor = "var(--color-border)"}
+        >
+          {dark
+            ? <><Sun size={13} /> Light</>
+            : <><Moon size={13} /> Dark</>}
+        </button>
+      </div>
+
+      {/* ── Left panel ── */}
+      <div style={{
+        flex: "1 1 55%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        padding: "60px 64px",
+        position: "relative",
+      }}>
+        {/* Background glow */}
+        <div style={{
+          position: "absolute", top: "10%", left: "-10%",
+          width: "500px", height: "500px", borderRadius: "50%",
+          background: "radial-gradient(ellipse, rgba(139,92,246,0.13) 0%, transparent 70%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Logo */}
+        <div style={{ marginBottom: "56px" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="SEO Gets" height={36} style={{ display: "block" }} />
+        </div>
+
+        {/* Headline */}
+        <h1 style={{
+          fontSize: "48px", fontWeight: 800, lineHeight: 1.1,
+          letterSpacing: "-0.04em", color: "var(--color-text-primary)",
+          marginBottom: "20px", maxWidth: "480px",
+        }}>
+          {c.tagline}<br />
+          <span style={{ color: "var(--color-accent-purple)" }}>{c.highlight}</span><br />
+          {c.tagline2}
+        </h1>
+        <p style={{
+          fontSize: "16px", color: "var(--color-text-secondary)",
+          lineHeight: 1.7, marginBottom: "48px", maxWidth: "400px",
+        }}>
+          {c.sub}
+        </p>
+
+        {/* Features */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", maxWidth: "420px" }}>
+          {c.features.map((f, i) => (
+            <div key={f.title} style={{ display: "flex", gap: "14px", alignItems: "flex-start" }}>
+              <div style={{
+                flexShrink: 0, width: "36px", height: "36px", borderRadius: "9px",
+                background: "rgba(139,92,246,0.12)",
+                border: "1px solid rgba(139,92,246,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "var(--color-accent-purple)",
+              }}>
+                {featureIcons[i]}
+              </div>
+              <div>
+                <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text-primary)", marginBottom: "2px" }}>
+                  {f.title}
+                </div>
+                <div style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
+                  {f.desc}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right panel ── */}
+      <div style={{
+        flex: "0 0 420px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "40px 48px",
+        borderLeft: "1px solid var(--color-border)",
+        background: "var(--color-card)",
+        position: "relative",
+      }}>
+        <div style={{ width: "100%", maxWidth: "320px" }}>
+          <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "8px" }}>
+            {c.getStarted}
+          </h2>
+          <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginBottom: "32px", lineHeight: 1.6 }}>
+            {c.signInSub}
           </p>
 
           <button
             onClick={() => signIn("google", { callbackUrl: "/" })}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: "12px",
-              width: "100%", padding: "13px 20px",
+              width: "100%", padding: "14px 20px",
               borderRadius: "10px",
               background: "#fff",
               color: "#1f2937",
               fontSize: "15px", fontWeight: 600,
               border: "none", cursor: "pointer",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-              transition: "box-shadow 0.2s, transform 0.1s",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              transition: "box-shadow 0.2s, transform 0.15s",
             }}
             onMouseOver={e => {
-              e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.35)";
+              e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.3)";
               e.currentTarget.style.transform = "translateY(-1px)";
             }}
             onMouseOut={e => {
-              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.25)";
+              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
               e.currentTarget.style.transform = "translateY(0)";
             }}
           >
             <GoogleIcon />
-            Sign in with Google
+            {c.signIn}
           </button>
 
-          <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "20px", opacity: 0.7 }}>
-            You can connect multiple Google accounts<br />after signing in.
-          </p>
+          <div style={{ margin: "28px 0", height: "1px", background: "var(--color-border)" }} />
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {c.bullets.map(item => (
+              <div key={item} style={{ fontSize: "12px", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ color: "var(--color-accent-green)", fontSize: "14px" }}>✓</span>
+                {item}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

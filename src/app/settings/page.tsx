@@ -163,10 +163,15 @@ function TeamsSection({ user }: { user: any }) {
         <tbody>
           <tr>
             <td style={{ padding: "16px 0 0" }}>
-              <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>{teamName}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
-                <Crown size={12} color="#F59E0B" />
-                <span style={{ fontSize: "12px", color: "#F59E0B", fontWeight: 600 }}>Admin</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <UserAvatar email={user?.email ?? "a"} picture={user?.image} size={28} />
+                <div>
+                  <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)" }}>{teamName}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                    <Crown size={11} color="#F59E0B" />
+                    <span style={{ fontSize: "11px", color: "#F59E0B", fontWeight: 600 }}>Owner</span>
+                  </div>
+                </div>
               </div>
             </td>
             <td style={{ padding: "16px 0 0" }}>
@@ -332,7 +337,7 @@ function MembersSection({ user }: { user: any }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "20px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}>
           <Crown size={12} color="#F59E0B" />
-          <span style={{ fontSize: "12px", color: "#F59E0B", fontWeight: 600 }}>Admin</span>
+          <span style={{ fontSize: "12px", color: "#F59E0B", fontWeight: 600 }}>Owner</span>
         </div>
       </div>
     </SectionCard>

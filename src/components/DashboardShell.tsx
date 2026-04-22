@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
-import { Settings, LogOut, BarChart2 } from "lucide-react";
+import { Settings, LogOut } from "lucide-react";
 import { usePrivacy } from "@/lib/PrivacyContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { useLayout } from "@/lib/LayoutContext";
@@ -475,16 +475,8 @@ function TopBar() {
         display: "flex", alignItems: "center", gap: "8px", cursor: "pointer",
         background: "none", border: "none",
       }}>
-        <div style={{
-          width: "24px", height: "24px", borderRadius: "6px",
-          background: "var(--color-accent-purple)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <BarChart2 size={14} color="#fff" />
-        </div>
-        <span style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)", letterSpacing: "-0.02em" }}>
-          SEO Gets
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="SEO Gets" height={28} style={{ display: "block" }} />
       </button>
 
       {/* Avatar */}
