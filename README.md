@@ -73,7 +73,6 @@ APIs & Services → Credentials → Create Credentials → **OAuth 2.0 Client ID
 | Authorized JavaScript origins | `https://твой-домен.com` |
 | Authorized redirect URIs | `https://твой-домен.com/api/auth/callback/google` |
 
-> **Используешь VPS без домена?** Замени `https://твой-домен.com` на `http://IP_СЕРВЕРА:3000` (именно `http://`, не `https://`).
 
 **Шаг 4 — Скопируй credentials**
 
@@ -118,21 +117,7 @@ Authorized redirect URIs:        https://твой-домен.com/api/auth/callba
 
 Результат: `https://твой-домен.com`
 
-### Вариант B: VPS по IP, без домена
-
-Подходит для личного использования. Работает без SSL (браузер покажет «небезопасно»).
-
-В Google Console:
-```
-Authorized JavaScript origins:  http://123.45.67.89:3000
-Authorized redirect URIs:        http://123.45.67.89:3000/api/auth/callback/google
-```
-
-В установщике: домен → `123.45.67.89`, SSL → `N`.
-
-Результат: `http://123.45.67.89:3000`
-
-### Вариант C: Ручная установка
+### Вариант B: Ручная установка
 
 Если хочешь настроить всё самостоятельно без скрипта:
 
@@ -227,7 +212,7 @@ URL в `.env` (`NEXTAUTH_URL`) не совпадает с Authorized redirect UR
 
 **Бесконечный редирект на `/login` после входа**
 
-Проверь `NEXTAUTH_URL` в `.env`. Если приложение работает по HTTPS — убедись что SSL-сертификат действителен. Если по HTTP — проверь что в `NEXTAUTH_URL` нет `https://`.
+Проверь `NEXTAUTH_URL` в `.env` — должен совпадать с доменом и протоколом. Убедись что SSL-сертификат действителен.
 
 **База данных пропала после перезапуска**
 

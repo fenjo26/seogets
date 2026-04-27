@@ -43,11 +43,28 @@ SETUP_SSL=${SETUP_SSL:-N}
 
 echo ""
 
+# ─── Wait for apt lock ────────────────────────────────────────────────────────
+wait_apt() {
+  local i=0
+  while fuser /var/lib/dpkg/lock-frontend /var/lib/apt/lists/lock /var/cache/apt/archives/lock &>/dev/null; do
+    if [ $i -eq 0 ]; then
+      info "Waiting for apt lock to be released (background updates running)..."
+    fi
+    sleep 3
+    i=$((i+1))
+    if [ $i -ge 40 ]; then
+      error "apt lock held for too long. Run: sudo kill $(fuser /var/lib/dpkg/lock-frontend 2>/dev/null) and try again."
+    fi
+  done
+}
+
 # ─── System packages ──────────────────────────────────────────────────────────
 header "System packages"
+wait_apt
 info "Updating package lists..."
 apt-get update -qq
 
+wait_apt
 info "Installing curl, git, unzip..."
 apt-get install -y -qq curl git unzip build-essential
 
@@ -161,6 +178,7 @@ if [[ "${INSTALL_NGINX^^}" == "Y" ]]; then
   header "Nginx"
 
   if ! command -v nginx &>/dev/null; then
+    wait_apt
     info "Installing Nginx..."
     apt-get install -y -qq nginx
   fi
@@ -197,6 +215,7 @@ EOF
   # ─── SSL ──────────────────────────────────────────────────────────────────
   if [[ "${SETUP_SSL^^}" == "Y" ]]; then
     header "SSL (Let's Encrypt)"
+    wait_apt
     apt-get install -y -qq certbot python3-certbot-nginx
     read -rp "  Email for SSL certificate (Let's Encrypt): " SSL_EMAIL
     SSL_EMAIL=${SSL_EMAIL:-"admin@${DOMAIN}"}
