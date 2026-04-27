@@ -50,10 +50,11 @@ wait_apt() {
     if [ $i -eq 0 ]; then
       info "Waiting for apt lock to be released (background updates running)..."
     fi
-    sleep 3
+    sleep 5
     i=$((i+1))
-    if [ $i -ge 40 ]; then
-      error "apt lock held for too long. Run: sudo kill $(fuser /var/lib/dpkg/lock-frontend 2>/dev/null) and try again."
+    if [ $i -ge 60 ]; then
+      LOCK_PID=$(fuser /var/lib/dpkg/lock-frontend 2>/dev/null | tr -d ' ')
+      error "apt lock held for too long. Run: sudo kill ${LOCK_PID} && sudo rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock && sudo dpkg --configure -a"
     fi
   done
 }
