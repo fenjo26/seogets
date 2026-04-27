@@ -136,6 +136,23 @@ function getDomain(url: string) {
   return url.replace("sc-domain:", "").replace(/^https?:\/\//, "").replace(/\/$/, "");
 }
 
+// Deterministic branded ratio per site (0–1) based on URL hash
+function brandedRatio(url: string): number {
+  let h = 0;
+  for (const c of url) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return (h % 100) / 100;
+}
+
+// ─── Filter chip ──────────────────────────────────────────────────────────────
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "5px", padding: "3px 10px 3px 12px", borderRadius: "20px", background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.3)", fontSize: "12px", color: "#3B82F6", whiteSpace: "nowrap" }}>
+      {label}
+      <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", color: "#60a5fa", padding: "0 0 0 2px", lineHeight: 1, fontSize: "14px", display: "flex", alignItems: "center" }}>×</button>
+    </div>
+  );
+}
+
 // ─── Export helpers ───────────────────────────────────────────────────────────
 const EXPORT_COLS = [
   { key: "date",    rows: 7   },
@@ -388,6 +405,8 @@ export default function PortfolioPage() {
   const [showPct, setShowPct]       = useState(true);
   const [searchType, setSearchType] = useState<SearchType>("web");
   const [branded, setBranded]       = useState<BrandedFilter>("all");
+  const [filterDimension, setFilterDimension] = useState<"query"|"page"|"country"|"device"|null>(null);
+  const [filterText, setFilterText] = useState("");
 
   useEffect(() => {
     fetch("/api/gsc/sites").then(r => r.json()).then(d => { if (d.sites) setSites(d.sites); }).catch(() => {}).finally(() => setLoading(false));
@@ -402,8 +421,28 @@ export default function PortfolioPage() {
     startDate.setDate(yd.getDate() - n + 1);
     return sites.map(s => ({ ...s, ...makeSiteData(n, startDate) }));
   }, [sites, period]);
+  const activeFilterCount = [
+    branded !== "all",
+    filterDimension !== null && filterText.trim() !== "",
+  ].filter(Boolean).length;
+
   const filtered = sitesWithData
-    .filter(s => getDomain(s.url).toLowerCase().includes(search.toLowerCase()))
+    .filter(s => {
+      const domain = getDomain(s.url).toLowerCase();
+      if (!domain.includes(search.toLowerCase())) return false;
+      if (branded === "branded"    && brandedRatio(s.url) <  0.45) return false;
+      if (branded === "nonbranded" && brandedRatio(s.url) >= 0.45) return false;
+      if (filterText.trim()) {
+        const txt = filterText.trim().toLowerCase();
+        if (filterDimension === "country") {
+          const tld = domain.split(".").pop() ?? "";
+          if (!tld.includes(txt)) return false;
+        } else if (filterDimension === "query" || filterDimension === "page") {
+          if (!domain.includes(txt)) return false;
+        }
+      }
+      return true;
+    })
     .sort((a, b) => {
       switch (sortBy) {
         case "az":
@@ -506,28 +545,101 @@ export default function PortfolioPage() {
   );
 
   // Filter dropdown
+  const filterDims = [
+    { v: "query"   as const, l: t("filterQuery"),   i: <Search size={13}/> },
+    { v: "page"    as const, l: t("filterPage"),    i: <FileText size={13}/> },
+    { v: "country" as const, l: t("filterCountry"), i: <Globe size={13}/> },
+    { v: "device"  as const, l: t("filterDevice"),  i: <Monitor size={13}/> },
+  ];
+  const filterPlaceholders: Record<string, string> = {
+    query:   "e.g. casino, shop…",
+    page:    "e.g. /blog, /product…",
+    country: "e.g. gr, de, com…",
+    device:  "",
+  };
+  const deviceOptions = [
+    { v: "all",     l: t("all") },
+    { v: "mobile",  l: t("deviceMobile") },
+    { v: "desktop", l: t("deviceDesktop") },
+    { v: "tablet",  l: t("deviceTablet") },
+  ];
+
   const FilterDd = (
-    <Dropdown trigger={<button style={tbBtn()}><SlidersHorizontal size={13} /> {t("filter")}</button>}>
-      {[
-        {l: t("filterQuery"),   i: <Search size={13}/>},
-        {l: t("filterPage"),    i: <FileText size={13}/>},
-        {l: t("filterCountry"), i: <Globe size={13}/>},
-        {l: t("filterDevice"),  i: <Monitor size={13}/>},
-      ].map(({l,i}) => <button key={l} style={mi()}>{i} {l}</button>)}
+    <Dropdown trigger={
+      <button style={tbBtn(activeFilterCount > 0)}>
+        <SlidersHorizontal size={13} /> {t("filter")}
+        {activeFilterCount > 0 && (
+          <span style={{ background: "#3B82F6", color: "#fff", borderRadius: "10px", padding: "0 6px", fontSize: "11px", fontWeight: 700, marginLeft: "2px" }}>
+            {activeFilterCount}
+          </span>
+        )}
+      </button>
+    }>
+      {/* Dimension filters */}
+      {ms(t("filter"))}
+      {filterDims.map(({ v, l, i }) => (
+        <button key={v} style={mi(filterDimension === v)} onClick={() => {
+          if (filterDimension === v) { setFilterDimension(null); setFilterText(""); }
+          else { setFilterDimension(v); setFilterText(""); }
+        }}>
+          {i} {l}
+          {filterDimension === v && <Check size={12} style={{ marginLeft: "auto" }} />}
+        </button>
+      ))}
+
+      {/* Text input for Query / Page / Country */}
+      {filterDimension && filterDimension !== "device" && (
+        <div style={{ padding: "4px 14px 10px" }}>
+          <input
+            autoFocus
+            value={filterText}
+            onChange={e => setFilterText(e.target.value)}
+            placeholder={filterPlaceholders[filterDimension]}
+            style={{ width: "100%", padding: "7px 10px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.06)", color: "var(--color-text-primary)", fontSize: "12px", outline: "none", boxSizing: "border-box" }}
+          />
+        </div>
+      )}
+
+      {/* Device pills */}
+      {filterDimension === "device" && (
+        <div style={{ padding: "4px 14px 10px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+          {deviceOptions.map(({ v, l }) => (
+            <button key={v} onClick={() => setFilterText(v === "all" ? "" : v)} style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, cursor: "pointer", border: `1px solid ${filterText === (v === "all" ? "" : v) ? "#3B82F6" : "var(--color-border)"}`, background: filterText === (v === "all" ? "" : v) ? "rgba(59,130,246,0.1)" : "transparent", color: filterText === (v === "all" ? "" : v) ? "#3B82F6" : "var(--color-text-secondary)" }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
+
       {md}{ms(t("brandedQueries"))}
-      <div style={{padding:"6px 14px 10px",display:"flex",gap:"6px"}}>
-        {(["all","branded","nonbranded"] as BrandedFilter[]).map(v => {
-          const lbl = v === "all" ? t("all") : v === "branded" ? t("branded") : `🚫${t("branded")}`;
+      <div style={{ padding: "6px 14px 10px", display: "flex", gap: "6px" }}>
+        {(["all", "branded", "nonbranded"] as BrandedFilter[]).map(v => {
+          const lbl = v === "all" ? t("all") : v === "branded" ? `✦ ${t("branded")}` : `◎ ${t("nonBranded")}`;
           return (
-            <button key={v} onClick={() => setBranded(v)} style={{padding:"4px 10px",borderRadius:"20px",fontSize:"12px",fontWeight:500,cursor:"pointer",border:`1px solid ${branded===v?"#3B82F6":"var(--color-border)"}`,background:branded===v?"rgba(59,130,246,0.1)":"transparent",color:branded===v?"#3B82F6":"var(--color-text-secondary)"}}>
+            <button key={v} onClick={() => setBranded(v)} style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, cursor: "pointer", border: `1px solid ${branded === v ? "#3B82F6" : "var(--color-border)"}`, background: branded === v ? "rgba(59,130,246,0.1)" : "transparent", color: branded === v ? "#3B82F6" : "var(--color-text-secondary)" }}>
               {lbl}
             </button>
           );
         })}
       </div>
+
       {md}{ms(t("presetFilters"))}
-      <button style={mi()}>{t("peopleAlsoAsk")}</button>
-      <button style={mi()}>{t("longTailKeywords")}</button>
+      <button style={mi(branded === "nonbranded" && filterDimension === null)} onClick={() => { setBranded("nonbranded"); setFilterDimension(null); setFilterText(""); }}>
+        <Search size={13}/> {t("peopleAlsoAsk")}
+      </button>
+      <button style={mi(false)} onClick={() => { setBranded("nonbranded"); setFilterDimension("query"); setFilterText("how"); }}>
+        <FileText size={13}/> {t("longTailKeywords")}
+      </button>
+
+      {/* Reset */}
+      {activeFilterCount > 0 && (
+        <>
+          {md}
+          <button style={{ ...mi(), color: "#EF4444" }} onClick={() => { setBranded("all"); setFilterDimension(null); setFilterText(""); }}>
+            <X size={13}/> Reset filters
+          </button>
+        </>
+      )}
     </Dropdown>
   );
 
@@ -712,6 +824,24 @@ export default function PortfolioPage() {
 
         {PeriodDd}
       </div>
+
+      {/* Active filter chips */}
+      {activeFilterCount > 0 && (
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+          {branded !== "all" && (
+            <FilterChip
+              label={branded === "branded" ? `✦ ${t("branded")}` : `◎ ${t("nonBranded")}`}
+              onRemove={() => setBranded("all")}
+            />
+          )}
+          {filterDimension && filterText.trim() && (
+            <FilterChip
+              label={`${filterDimension}: ${filterText.trim()}`}
+              onRemove={() => { setFilterDimension(null); setFilterText(""); }}
+            />
+          )}
+        </div>
+      )}
 
       {/* Body */}
       {loading ? (
