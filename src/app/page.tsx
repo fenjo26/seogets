@@ -401,7 +401,23 @@ export default function PortfolioPage() {
     startDate.setDate(yd.getDate() - n + 1);
     return sites.map(s => ({ ...s, ...makeSiteData(n, startDate) }));
   }, [sites, period]);
-  const filtered    = sitesWithData.filter(s => getDomain(s.url).toLowerCase().includes(search.toLowerCase()));
+  const filtered = sitesWithData
+    .filter(s => getDomain(s.url).toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "az":
+          return getDomain(a.url).localeCompare(getDomain(b.url));
+        case "total":
+          return b.summary.clicks.value - a.summary.clicks.value;
+        case "growth":
+          return (b.summary.clicks.value * b.summary.clicks.change / 100)
+               - (a.summary.clicks.value * a.summary.clicks.change / 100);
+        case "growth_pct":
+          return b.summary.clicks.change - a.summary.clicks.change;
+        default:
+          return 0;
+      }
+    });
   const favSites    = filtered.filter(s => favorites.has(s.id) && !hidden.has(s.id));
   const restSites   = filtered.filter(s => !favorites.has(s.id) && !hidden.has(s.id));
   const hiddenSites = filtered.filter(s => hidden.has(s.id));
