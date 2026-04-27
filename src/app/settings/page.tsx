@@ -209,9 +209,10 @@ function ApiSection() {
   const [copied, setCopied] = useState(false);
 
   const activeKey = keys[0]?.key ?? "REPLACE_WITH_YOUR_KEY";
+  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
   const command = os === "mac"
-    ? `curl -sSL https://app.seogets.com/install-mcp.sh | bash -s -- ${activeKey}`
-    : `powershell -c "irm https://app.seogets.com/install-mcp.ps1 | iex" -- ${activeKey}`;
+    ? `curl -sSL ${appUrl}/install-mcp.sh | bash -s -- ${activeKey}`
+    : `powershell -c "irm ${appUrl}/install-mcp.ps1 | iex" -- ${activeKey}`;
 
   const createKey = () => {
     if (!keyName.trim()) return;
@@ -360,7 +361,7 @@ function MembersSection({ user }: { user: any }) {
 
 // ─── Section: Preferences ─────────────────────────────────────────────────────
 function PreferencesSection({ user }: { user: any }) {
-  const { t } = useLanguage();
+  const { t, language, setLanguage } = useLanguage();
   const teamName = user?.name ? `${user.name.split(" ")[0]}'s Team` : "My Team";
   const [shareWithTeam, setShareWithTeam] = useState(true);
   const [useAI, setUseAI] = useState(true);
@@ -382,6 +383,24 @@ function PreferencesSection({ user }: { user: any }) {
             {shareWithTeam ? t("yes") : t("no")}
             <ChevronDown size={13} color="var(--color-text-secondary)" />
           </button>
+        </div>
+      </SectionCard>
+
+      {/* Language */}
+      <SectionCard>
+        <SectionTitle title={t("language")} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>{t("language")}</div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>English / Русский</div>
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {(["en", "ru"] as const).map(lang => (
+              <button key={lang} onClick={() => setLanguage(lang)} style={{ padding: "6px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", background: language === lang ? "rgba(139,92,246,0.15)" : "transparent", color: language === lang ? "#8B5CF6" : "var(--color-text-secondary)", border: `1px solid ${language === lang ? "rgba(139,92,246,0.3)" : "var(--color-border)"}`, transition: "all 0.15s" }}>
+                {lang === "en" ? "🇬🇧 EN" : "🇷🇺 RU"}
+              </button>
+            ))}
+          </div>
         </div>
       </SectionCard>
 

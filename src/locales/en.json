@@ -212,6 +212,7 @@
   "version": "Version",
 
   "navSettings": "Settings",
+  "language": "Language",
   "privacyBlur": "Privacy Blur",
   "darkMode": "Dark Mode",
   "layout": "Layout",

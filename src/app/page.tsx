@@ -379,7 +379,7 @@ export default function PortfolioPage() {
 
   const [activeMetrics, setActiveMetrics] = useState<Set<Metric>>(new Set(["clicks", "impressions", "ctr", "position"]));
   const [sortBy, setSortBy]     = useState<SortBy>("az");
-  const [period, setPeriod]     = useState("3m");
+  const [period, setPeriod]     = useState("7d");
   const [periodView, setPeriodView] = useState<PeriodView>("day");
   const [comparison, setComparison] = useState<Comparison>("previous");
   const [prevTrend, setPrevTrend]   = useState(true);
