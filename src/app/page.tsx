@@ -396,10 +396,11 @@ export default function PortfolioPage() {
     const days = periodToDays(period);
     const maxPoints = 90;
     const n = Math.min(days, maxPoints);
-    const startDate = new Date(yesterday);
-    startDate.setDate(yesterday.getDate() - n + 1);
+    const yd = new Date(); yd.setDate(yd.getDate() - 1);
+    const startDate = new Date(yd);
+    startDate.setDate(yd.getDate() - n + 1);
     return sites.map(s => ({ ...s, ...makeSiteData(n, startDate) }));
-  }, [sites, period]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sites, period]);
   const filtered    = sitesWithData.filter(s => getDomain(s.url).toLowerCase().includes(search.toLowerCase()));
   const favSites    = filtered.filter(s => favorites.has(s.id) && !hidden.has(s.id));
   const restSites   = filtered.filter(s => !favorites.has(s.id) && !hidden.has(s.id));
