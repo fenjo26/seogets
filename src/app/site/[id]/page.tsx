@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import ContentDecayMap from "@/components/ContentDecayMap";
 import KeywordCannibalization from "@/components/KeywordCannibalization";
 import StrikingDistanceKeywords from "@/components/StrikingDistanceKeywords";
+import SiteSettingsTab from "@/components/SiteSettingsTab";
 import CtrBenchmark from "@/components/CtrBenchmark";
 import { useParams, useRouter } from "next/navigation";
 import { usePrivacy } from "@/lib/PrivacyContext";
@@ -1342,9 +1343,9 @@ export default function SitePage() {
       {/* ── Optimize tab ── */}
       {activeTab === "optimize" && <OptimizeTab />}
 
-      {/* ── Stub tabs ── */}
+      {/* ── Settings tab ── */}
       {activeTab === "settings" && (
-        <StubTab label={TABS.find(t => t.key === activeTab)?.label ?? ""} />
+        <SiteSettingsTab domain={domain} />
       )}
 
       {/* ── Dashboard tab content ── */}
