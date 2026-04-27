@@ -114,13 +114,13 @@ function TabBar({ tabs, active, onChange }: { tabs: string[]; active: string; on
     "Pages":      t("pagesTable"),
   };
   return (
-    <div style={{ display: "flex", gap: "2px", background: "#f3f4f6", borderRadius: "8px", padding: "3px" }}>
+    <div style={{ display: "flex", gap: "2px", background: "var(--color-card)", borderRadius: "8px", padding: "3px", border: "1px solid var(--color-border)" }}>
       {tabs.map(tab => (
         <button key={tab} onClick={() => onChange(tab)} style={{
           padding: "4px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 500, cursor: "pointer",
-          background: active === tab ? "#fff" : "transparent",
-          color: active === tab ? "#111" : "#6b7280",
-          border: "none", boxShadow: active === tab ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+          background: active === tab ? "var(--color-bg)" : "transparent",
+          color: active === tab ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+          border: "none", boxShadow: active === tab ? "0 1px 3px rgba(0,0,0,0.2)" : "none",
           transition: "all 0.15s",
         }}>{labelMap[tab] ?? tab}</button>
       ))}
@@ -145,13 +145,15 @@ function DataTable({ title, rows, tabs, blur = false }: {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111" }}>{title}</h3>
+        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{title}</h3>
         {tabs && <TabBar tabs={tabs} active={tab} onChange={setTab} />}
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
-          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-            <th style={{ textAlign: "left", padding: "8px 0", color: C.clicks, fontWeight: 600 }}>{t("clicks")}</th>
+          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+            {/* first column: label (no header text) */}
+            <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500 }}></th>
+            <th style={{ textAlign: "left", padding: "8px 8px", color: C.clicks, fontWeight: 600 }}>{t("clicks")}</th>
             <th style={{ textAlign: "left", padding: "8px 8px", color: C.impressions, fontWeight: 600 }}>{t("impressions")}</th>
             <th style={{ textAlign: "left", padding: "8px 8px", color: C.ctr, fontWeight: 600 }}>CTR</th>
             <th style={{ textAlign: "left", padding: "8px 0", color: C.position, fontWeight: 600 }}>{t("position")}</th>
@@ -159,18 +161,18 @@ function DataTable({ title, rows, tabs, blur = false }: {
         </thead>
         <tbody>
           {sorted.slice(0, 8).map((r, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid #f3f4f6", background: i % 2 === 0 ? "#fafafa" : "#fff" }}>
-              <td style={{ padding: "8px 0 8px 8px", color: "#374151", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} colSpan={0}>
+            <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
+              <td style={{ padding: "8px 8px 8px 0", color: "var(--color-text-primary)", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 <span style={blur ? { filter: "blur(5px)", userSelect: "none", transition: "filter 0.25s", display: "inline-block" } : { transition: "filter 0.25s" }}>
                   {r.label}
                 </span>
               </td>
-              <td style={{ padding: "8px 0", color: "#111", fontWeight: 500 }}>
+              <td style={{ padding: "8px 8px", color: "var(--color-text-primary)", fontWeight: 500 }}>
                 {r.clicks}<Change pct={r.cPct} />
               </td>
-              <td style={{ padding: "8px 8px", color: "#6b7280" }}>{fmtK(r.impr)}<Change pct={r.iPct} /></td>
-              <td style={{ padding: "8px 8px", color: "#6b7280" }}>{r.ctr}%</td>
-              <td style={{ padding: "8px 0", color: "#6b7280" }}>{r.pos}</td>
+              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{fmtK(r.impr)}<Change pct={r.iPct} /></td>
+              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{r.ctr}%</td>
+              <td style={{ padding: "8px 0", color: "var(--color-text-secondary)" }}>{r.pos}</td>
             </tr>
           ))}
         </tbody>
@@ -187,27 +189,27 @@ function CountryTable({ rows }: { rows: ReturnType<typeof makeCountryRows> }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111" }}>{t("countries")}</h3>
+        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("countries")}</h3>
         <TabBar tabs={["All", "Growing", "Decaying"]} active={tab} onChange={setTab} />
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
-          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-            <th style={{ textAlign: "left", padding: "8px 0", color: "#9ca3af", fontWeight: 500 }}></th>
-            <th style={{ textAlign: "left", color: C.clicks, fontWeight: 600 }}>{t("clicks")}</th>
-            <th style={{ textAlign: "left", padding: "8px", color: C.impressions, fontWeight: 600 }}>{t("impressions")}</th>
-            <th style={{ textAlign: "left", padding: "8px", color: C.ctr, fontWeight: 600 }}>CTR</th>
-            <th style={{ textAlign: "left", color: C.position, fontWeight: 600 }}>{t("position")}</th>
+          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+            <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500 }}></th>
+            <th style={{ textAlign: "left", padding: "8px 8px", color: C.clicks, fontWeight: 600 }}>{t("clicks")}</th>
+            <th style={{ textAlign: "left", padding: "8px 8px", color: C.impressions, fontWeight: 600 }}>{t("impressions")}</th>
+            <th style={{ textAlign: "left", padding: "8px 8px", color: C.ctr, fontWeight: 600 }}>CTR</th>
+            <th style={{ textAlign: "left", padding: "8px 0", color: C.position, fontWeight: 600 }}>{t("position")}</th>
           </tr>
         </thead>
         <tbody>
           {sorted.map((r, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid #f3f4f6", background: i % 2 === 0 ? "#fafafa" : "#fff" }}>
-              <td style={{ padding: "8px 0 8px 8px" }}>{r.flag} {r.name}</td>
-              <td style={{ fontWeight: 500 }}>{r.clicks}<Change pct={r.cPct} /></td>
-              <td style={{ padding: "8px" }}>{fmtK(r.impr)}<Change pct={r.iPct} /></td>
-              <td style={{ padding: "8px" }}>{r.ctr}%</td>
-              <td>{r.pos}</td>
+            <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
+              <td style={{ padding: "8px 8px 8px 0", color: "var(--color-text-primary)" }}>{r.flag} {r.name}</td>
+              <td style={{ padding: "8px 8px", fontWeight: 500, color: "var(--color-text-primary)" }}>{r.clicks}<Change pct={r.cPct} /></td>
+              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{fmtK(r.impr)}<Change pct={r.iPct} /></td>
+              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{r.ctr}%</td>
+              <td style={{ padding: "8px 0", color: "var(--color-text-secondary)" }}>{r.pos}</td>
             </tr>
           ))}
         </tbody>
@@ -227,29 +229,29 @@ function DeviceTable() {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#111" }}>{t("devices")}</h3>
+        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("devices")}</h3>
         <TabBar tabs={["All", "Growing", "Decaying"]} active={tab} onChange={setTab} />
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
-          <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-            <th style={{ textAlign: "left", padding: "8px 0", color: "#9ca3af", fontWeight: 500 }}></th>
-            <th style={{ textAlign: "left", color: C.clicks, fontWeight: 600 }}>{t("clicks")}</th>
-            <th style={{ textAlign: "left", padding: "8px", color: C.impressions, fontWeight: 600 }}>{t("impressions")}</th>
-            <th style={{ textAlign: "left", padding: "8px", color: C.ctr, fontWeight: 600 }}>CTR</th>
-            <th style={{ textAlign: "left", color: C.position, fontWeight: 600 }}>{t("position")}</th>
+          <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+            <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500 }}></th>
+            <th style={{ textAlign: "left", padding: "8px 8px", color: C.clicks, fontWeight: 600 }}>{t("clicks")}</th>
+            <th style={{ textAlign: "left", padding: "8px 8px", color: C.impressions, fontWeight: 600 }}>{t("impressions")}</th>
+            <th style={{ textAlign: "left", padding: "8px 8px", color: C.ctr, fontWeight: 600 }}>CTR</th>
+            <th style={{ textAlign: "left", padding: "8px 0", color: C.position, fontWeight: 600 }}>{t("position")}</th>
           </tr>
         </thead>
         <tbody>
           {devices.map((d, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid #f3f4f6", background: i % 2 === 0 ? "#fafafa" : "#fff" }}>
-              <td style={{ padding: "8px 0 8px 8px", display: "flex", alignItems: "center", gap: "6px", color: "#374151" }}>
+            <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
+              <td style={{ padding: "8px 8px 8px 0", display: "flex", alignItems: "center", gap: "6px", color: "var(--color-text-primary)" }}>
                 {d.icon} {d.name}
               </td>
-              <td style={{ fontWeight: 500 }}>{d.clicks}<Change pct={d.cPct} /></td>
-              <td style={{ padding: "8px" }}>{fmtK(d.impr)}<Change pct={d.iPct} /></td>
-              <td style={{ padding: "8px" }}>{d.ctr}%<Change pct={d.ctrPct} /></td>
-              <td>{d.pos}<Change pct={d.posDelta} invert /></td>
+              <td style={{ padding: "8px 8px", fontWeight: 500, color: "var(--color-text-primary)" }}>{d.clicks}<Change pct={d.cPct} /></td>
+              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{fmtK(d.impr)}<Change pct={d.iPct} /></td>
+              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{d.ctr}%<Change pct={d.ctrPct} /></td>
+              <td style={{ padding: "8px 0", color: "var(--color-text-secondary)" }}>{d.pos}<Change pct={d.posDelta} invert /></td>
             </tr>
           ))}
         </tbody>
@@ -260,10 +262,10 @@ function DeviceTable() {
 
 function Placeholder({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <div style={{ border: "1px dashed #d1d5db", borderRadius: "12px", padding: "40px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", background: "#fafafa" }}>
-      <div style={{ color: "#9ca3af" }}>{icon}</div>
-      <p style={{ fontWeight: 600, color: "#374151", fontSize: "14px" }}>{title}</p>
-      <p style={{ fontSize: "13px", color: "#6b7280" }}>
+    <div style={{ border: "1px dashed var(--color-border)", borderRadius: "12px", padding: "40px 24px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", background: "var(--color-card)" }}>
+      <div style={{ color: "var(--color-text-secondary)" }}>{icon}</div>
+      <p style={{ fontWeight: 600, color: "var(--color-text-primary)", fontSize: "14px" }}>{title}</p>
+      <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
         <span style={{ color: "#3B82F6", cursor: "pointer" }}>{desc}</span>
       </p>
     </div>
@@ -276,8 +278,8 @@ function SiteTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   const d = payload.reduce((acc: any, p: any) => { acc[p.dataKey] = p.value; return acc; }, {} as any);
   return (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#111", boxShadow: "0 4px 20px rgba(0,0,0,0.12)" }}>
-      <p style={{ fontWeight: 600, marginBottom: "6px", color: "#374151" }}>{label}</p>
+    <div style={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "var(--color-text-primary)", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
+      <p style={{ fontWeight: 600, marginBottom: "6px", color: "var(--color-text-primary)" }}>{label}</p>
       {[
         { key: "clicks",      label: t("clicks"),      color: C.clicks },
         { key: "impressions", label: t("impressions"),  color: C.impressions },
@@ -286,7 +288,7 @@ function SiteTooltip({ active, payload, label }: any) {
       ].map(({ key, label, color, suffix = "" }) => (
         <div key={key} style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "2px" }}>
           <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />
-          <span style={{ color: "#6b7280", flex: 1 }}>{label}</span>
+          <span style={{ color: "var(--color-text-secondary)", flex: 1 }}>{label}</span>
           <span style={{ fontWeight: 600 }}>{d[key]}{suffix}</span>
         </div>
       ))}
@@ -336,28 +338,29 @@ export default function SitePage() {
   const periodOptions = ["7 days", "14 days", "28 days", "3 months", "6 months", "12 months"];
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", color: "#111", fontFamily: "Inter, sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text-primary)", fontFamily: "Inter, sans-serif" }}>
       {/* Top nav */}
-      <div style={{ borderBottom: "1px solid #e5e7eb", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ borderBottom: "1px solid var(--color-border)", padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--color-card)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0" }}>
           {/* Breadcrumb */}
-          <button onClick={() => router.push("/")} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "16px 0", color: "#374151", fontSize: "14px", fontWeight: 600, cursor: "pointer", border: "none", background: "none" }}>
-            <span style={{ opacity: 0.5 }}>SEO Gets</span>
+          <button onClick={() => router.push("/")} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "16px 0", color: "var(--color-text-secondary)", fontSize: "14px", fontWeight: 600, cursor: "pointer", border: "none", background: "none" }}>
+            <span style={{ opacity: 0.6 }}>SEO Gets</span>
           </button>
-          <span style={{ color: "#9ca3af", margin: "0 8px" }}>/</span>
+          <span style={{ color: "var(--color-text-secondary)", margin: "0 8px" }}>/</span>
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} width={14} height={14} alt="" style={{ borderRadius: "2px" }} onError={e => ((e.target as HTMLImageElement).style.display = "none")} />
             <span style={{ fontSize: "14px", fontWeight: 600, ...blurStyle }}>{domain}</span>
           </div>
-          <span style={{ margin: "0 24px", color: "#e5e7eb" }}>|</span>
+          <span style={{ margin: "0 24px", color: "var(--color-border)" }}>|</span>
           {/* Tab nav */}
           <nav style={{ display: "flex", gap: "0" }}>
             {TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{
                 padding: "16px 14px", fontSize: "13px", fontWeight: activeTab === tab ? 600 : 400,
-                color: activeTab === tab ? "#111" : "#6b7280",
-                cursor: "pointer", border: "none", borderBottom: activeTab === tab ? "2px solid #111" : "2px solid transparent",
+                color: activeTab === tab ? "var(--color-text-primary)" : "var(--color-text-secondary)",
+                cursor: "pointer", border: "none",
+                borderBottom: activeTab === tab ? "2px solid var(--color-text-primary)" : "2px solid transparent",
                 background: "none", transition: "all 0.15s",
               }}>{tab}</button>
             ))}
@@ -366,7 +369,7 @@ export default function SitePage() {
 
         {/* Right controls */}
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <button style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "8px", border: "1px solid #e5e7eb", background: "#fff", color: "#6b7280", fontSize: "12px", cursor: "pointer" }}>
+          <button style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-card)", color: "var(--color-text-secondary)", fontSize: "12px", cursor: "pointer" }}>
             <SlidersHorizontal size={13} /> {t("filter")}
           </button>
           {[
@@ -375,11 +378,11 @@ export default function SitePage() {
             { icon: <Percent size={13} />, color: C.ctr },
             { icon: <MoveUp size={13} />, color: C.position },
           ].map(({ icon, color }, i) => (
-            <button key={i} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid #e5e7eb", background: "#fff", color, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+            <button key={i} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-card)", color, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               {icon}
             </button>
           ))}
-          <select value={period} onChange={e => setPeriod(e.target.value)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px", color: "#374151", cursor: "pointer", outline: "none" }}>
+          <select value={period} onChange={e => setPeriod(e.target.value)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid var(--color-border)", fontSize: "12px", color: "var(--color-text-primary)", background: "var(--color-card)", cursor: "pointer", outline: "none" }}>
             {periodOptions.map(p => (
               <option key={p} value={p}>{p}</option>
             ))}
@@ -400,14 +403,14 @@ export default function SitePage() {
           ].map(({ icon, val, pct }, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               {icon}
-              <span style={{ fontSize: "22px", fontWeight: 700, color: "#111" }}>{val}</span>
+              <span style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text-primary)" }}>{val}</span>
               <span style={{ fontSize: "13px", color: "#10B981", fontWeight: 600 }}>+{pct}%</span>
             </div>
           ))}
         </div>
 
         {/* Main chart */}
-        <div style={{ background: "#fff", borderRadius: "12px" }}>
+        <div style={{ background: "var(--color-card)", borderRadius: "12px", padding: "16px", border: "1px solid var(--color-border)" }}>
           <ResponsiveContainer width="100%" height={300}>
             <ComposedChart data={chartData} margin={{ top: 8, right: 50, left: 0, bottom: 0 }}>
               <defs>
@@ -418,11 +421,11 @@ export default function SitePage() {
                   </linearGradient>
                 ))}
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9ca3af" }} />
-              <YAxis yAxisId="left"  axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9ca3af" }} />
-              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "#9ca3af" }} />
-              <Tooltip content={<SiteTooltip />} cursor={{ stroke: "#e5e7eb", strokeWidth: 1 }} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+              <YAxis yAxisId="left"  axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
+              <Tooltip content={<SiteTooltip />} cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }} />
               <Line yAxisId="left"  type="monotone" dataKey="clicksC"      stroke={C.clicks}      strokeWidth={1} strokeDasharray="4 3" dot={false} legendType="none" />
               <Line yAxisId="right" type="monotone" dataKey="impressionsC" stroke={C.impressions}  strokeWidth={1} strokeDasharray="4 3" dot={false} legendType="none" />
               <Area yAxisId="left"  type="monotone" dataKey="clicks"      stroke={C.clicks}      strokeWidth={2} fill={`url(#sg-clicks)`}      dot={false} />
@@ -436,11 +439,11 @@ export default function SitePage() {
         {/* Topic Clusters + Content Groups */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
           <div>
-            <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px" }}>{t("topicClusters")}</h3>
+            <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px", color: "var(--color-text-primary)" }}>{t("topicClusters")}</h3>
             <Placeholder icon={<MoveUp size={28} />} title={t("missingTopicClusters")} desc={`${t("define")} ${t("activateReportDesc")}`} />
           </div>
           <div>
-            <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px" }}>{t("contentGroups")}</h3>
+            <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px", color: "var(--color-text-primary)" }}>{t("contentGroups")}</h3>
             <Placeholder icon={
               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="8" y="8" width="8" height="8" rx="1"/><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><rect x="16" y="16" width="5" height="5" rx="1"/></svg>
             } title={t("missingContentGroups")} desc={`${t("define")} ${t("activateReportDesc")}`} />
@@ -457,7 +460,7 @@ export default function SitePage() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 700 }}>{t("brandedVsNonBranded")}</h3>
+              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("brandedVsNonBranded")}</h3>
               <TabBar tabs={["Trend", "Comparison"]} active="Trend" onChange={() => {}} />
             </div>
             <Placeholder icon={
@@ -466,7 +469,7 @@ export default function SitePage() {
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 700 }}>{t("queryCounting")}</h3>
+              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("queryCounting")}</h3>
               <TabBar tabs={["Total", "By Ranking"]} active="Total" onChange={() => {}} />
             </div>
             <div style={{ display: "flex", gap: "16px", marginBottom: "12px" }}>
@@ -479,7 +482,7 @@ export default function SitePage() {
                 <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
                     <div style={{ width: "12px", height: "12px", background: color, borderRadius: "2px" }} />
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#374151" }}>{label}</span>
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</span>
                   </div>
                   <span style={{ fontSize: "11px", color: "#10B981", fontWeight: 500 }}>+{pct}%</span>
                 </div>
@@ -487,10 +490,10 @@ export default function SitePage() {
             </div>
             <ResponsiveContainer width="100%" height={160}>
               <AreaChart data={qcData} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#9ca3af" }} />
-                <Tooltip contentStyle={{ fontSize: "12px", borderRadius: "8px" }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--color-text-secondary)" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--color-text-secondary)" }} />
+                <Tooltip contentStyle={{ fontSize: "12px", borderRadius: "8px", background: "var(--color-card)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
                 <Area type="monotone" dataKey="1-3"   stroke="#F59E0B" strokeWidth={1.5} fill="rgba(245,158,11,0.15)"  dot={false} />
                 <Area type="monotone" dataKey="4-10"  stroke="#1e40af" strokeWidth={1.5} fill="rgba(30,64,175,0.15)"  dot={false} />
                 <Area type="monotone" dataKey="11-20" stroke="#3B82F6" strokeWidth={1.5} fill="rgba(59,130,246,0.15)" dot={false} />
@@ -505,27 +508,27 @@ export default function SitePage() {
           <CountryTable rows={countryRows} />
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 700 }}>{t("newRankings")}</h3>
+              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("newRankings")}</h3>
               <TabBar tabs={["Queries", "Pages"]} active="Queries" onChange={() => {}} />
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
-                  <th style={{ textAlign: "left", padding: "8px 0", color: "#9ca3af", fontWeight: 500 }}></th>
-                  <th style={{ textAlign: "left", color: "#6b7280", fontWeight: 600, fontSize: "12px" }}>{t("clicks")}</th>
-                  <th style={{ textAlign: "left", padding: "8px", color: C.impressions, fontWeight: 600, fontSize: "12px" }}>{t("impressions")}</th>
-                  <th style={{ textAlign: "left", padding: "8px", color: C.ctr, fontWeight: 600, fontSize: "12px" }}>CTR</th>
-                  <th style={{ textAlign: "left", color: C.position, fontWeight: 600, fontSize: "12px" }}>{t("position")}</th>
+                <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+                  <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500 }}></th>
+                  <th style={{ textAlign: "left", padding: "8px 8px", color: C.clicks, fontWeight: 600, fontSize: "12px" }}>{t("clicks")}</th>
+                  <th style={{ textAlign: "left", padding: "8px 8px", color: C.impressions, fontWeight: 600, fontSize: "12px" }}>{t("impressions")}</th>
+                  <th style={{ textAlign: "left", padding: "8px 8px", color: C.ctr, fontWeight: 600, fontSize: "12px" }}>CTR</th>
+                  <th style={{ textAlign: "left", padding: "8px 0", color: C.position, fontWeight: 600, fontSize: "12px" }}>{t("position")}</th>
                 </tr>
               </thead>
               <tbody>
                 {QUERIES.slice(0, 8).map((q, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid #f3f4f6" }}>
-                    <td style={{ padding: "7px 0 7px 0", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "12px", color: "#374151" }}>{q}</td>
-                    <td style={{ fontSize: "12px" }}>0 <span style={{ color: "#6b7280" }}>~0%</span></td>
-                    <td style={{ padding: "7px 8px", fontSize: "12px" }}>{rndInt(1, 40)} <span style={{ color: "#10B981" }}>+∞%</span></td>
-                    <td style={{ padding: "7px 8px", fontSize: "12px" }}>0%</td>
-                    <td style={{ fontSize: "12px" }}>{+rnd(5, 60).toFixed(1)} <span style={{ color: "#6b7280" }}>~0</span></td>
+                  <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
+                    <td style={{ padding: "7px 8px 7px 0", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "12px", color: "var(--color-text-primary)" }}>{q}</td>
+                    <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-primary)" }}>0 <span style={{ color: "var(--color-text-secondary)" }}>~0%</span></td>
+                    <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>{rndInt(1, 40)} <span style={{ color: "#10B981" }}>+∞%</span></td>
+                    <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>0%</td>
+                    <td style={{ padding: "7px 0", fontSize: "12px", color: "var(--color-text-secondary)" }}>{+rnd(5, 60).toFixed(1)} <span style={{ color: "var(--color-text-secondary)" }}>~0</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -537,15 +540,15 @@ export default function SitePage() {
         <DeviceTable />
 
         {/* Footer */}
-        <div style={{ borderTop: "1px solid #e5e7eb", paddingTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <div style={{ width: "20px", height: "20px", borderRadius: "4px", background: "#8B5CF6" }} />
-              <span style={{ fontSize: "14px", fontWeight: 700 }}>SEO Gets</span>
+              <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)" }}>SEO Gets</span>
             </div>
-            <span style={{ fontSize: "13px", color: "#6b7280", cursor: "pointer" }}>{t("changelog")}</span>
+            <span style={{ fontSize: "13px", color: "var(--color-text-secondary)", cursor: "pointer" }}>{t("changelog")}</span>
           </div>
-          <span style={{ fontSize: "12px", color: "#9ca3af" }}>{t("copyright")}</span>
+          <span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{t("copyright")}</span>
         </div>
       </div>
     </div>
