@@ -375,5 +375,21 @@
   "setGa4Desc": "Привязка ресурса GA4 откроет дополнительные метрики.",
   "setSelectGa4": "Выберите ресурс GA4",
   "setGa4Note": "Данные GA4 будут отфильтрованы по следующим органическим источникам:",
-  "setGa4Sources": "google / organic, chatgpt.com / (not set), duckduckgo / organic, bing / organic, yahoo / organic, chatgpt.com / referral, perplexity.ai / referral, ntp.msn.com / referral, yandex / organic, search.brave.com / referral, baidu / organic, ecosia.org / referral, qwant.com / referral, seznam / organic"
+  "setGa4Sources": "google / organic, chatgpt.com / (not set), duckduckgo / organic, bing / organic, yahoo / organic, chatgpt.com / referral, perplexity.ai / referral, ntp.msn.com / referral, yandex / organic, search.brave.com / referral, baidu / organic, ecosia.org / referral, qwant.com / referral, seznam / organic",
+  
+  "annMovedToAstro": "Переезд с WordPress на Astro",
+  "annRedirectGlossary": "301 редирект страницы словаря индексации",
+  "annFeaturePostsUpdate": "Обновление функциональных постов",
+  "annUpdatedBrandedKw": "Обновлена страница /features/branded-keywords",
+  "annAllPages": "Все страницы",
+  "annContentGroup": "Группа контента",
+  "annSpecificPages": "Конкретная страница(ы)",
+  "annNotes": "Заметки",
+  "annUpdates": "Обновления",
+  "annCreateFirstNote": "Создайте свою первую заметку, чтобы начать",
+  "annCreateNoteBtn": "+ Создать первую заметку",
+  "annOrTryItWith": "или попробуйте с",
+  "annAddNote": "+ Добавить Заметку",
+  "avgPosition": "ср. позиция",
+  "annEmptyDesc": "У вас пока нет ни одной заметки."
 }

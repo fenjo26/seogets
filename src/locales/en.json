@@ -375,5 +375,21 @@
   "setGa4Desc": "Linking to a GA4 property will unlock additional metrics.",
   "setSelectGa4": "Select GA4 Property",
   "setGa4Note": "GA4 data will be filtered by the following organic sources:",
-  "setGa4Sources": "google / organic, chatgpt.com / (not set), duckduckgo / organic, bing / organic, yahoo / organic, chatgpt.com / referral, perplexity.ai / referral, ntp.msn.com / referral, yandex / organic, search.brave.com / referral, baidu / organic, ecosia.org / referral, qwant.com / referral, seznam / organic"
+  "setGa4Sources": "google / organic, chatgpt.com / (not set), duckduckgo / organic, bing / organic, yahoo / organic, chatgpt.com / referral, perplexity.ai / referral, ntp.msn.com / referral, yandex / organic, search.brave.com / referral, baidu / organic, ecosia.org / referral, qwant.com / referral, seznam / organic",
+  
+  "annMovedToAstro": "Moved from WordPress to Astro",
+  "annRedirectGlossary": "301 Redirect Indexing Glossary Page",
+  "annFeaturePostsUpdate": "Feature Posts Update",
+  "annUpdatedBrandedKw": "Updated /features/branded-keywords",
+  "annAllPages": "All Pages",
+  "annContentGroup": "Content Group",
+  "annSpecificPages": "Specific Page(s)",
+  "annNotes": "Notes",
+  "annUpdates": "Updates",
+  "annCreateFirstNote": "Create your first note to get started",
+  "annCreateNoteBtn": "+ Create your first note",
+  "annOrTryItWith": "or try it with",
+  "annAddNote": "+ Add Note",
+  "avgPosition": "avg. position",
+  "annEmptyDesc": "You don't have any notes yet."
 }

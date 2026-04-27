@@ -863,16 +863,17 @@ interface AnnotationNote {
   sparkBefore: number[]; sparkAfter: number[];
 }
 
-const MOCK_ANNOTATIONS: AnnotationNote[] = [
-  { date: "Sep 5, 2024",  title: "Moved from WordPress to Astro",          scope: "All Pages",       cBefore: 1500, cAfter: 2000,  cPct: 36,  iBefore: 49200, iAfter: 176300, iPct: 258, tBefore: 3.1, tAfter: 1.2, tPct: 1.9,  pBefore: 55.3, pAfter: 58,   pDelta: 2.7,  dateRange: "Jul 5 to Sep 3 → Sep 6 to Nov 5",    sparkBefore: [20,22,18,25,23,21,28,30], sparkAfter: [32,38,42,45,50,55,58,62] },
-  { date: "Jun 28, 2024", title: "301 Redirect Indexing Glossary Page",    scope: "All Pages",       cBefore: 683,  cAfter: 1400,  cPct: 118, iBefore: 37900, iAfter: 46400,  iPct: 22,  tBefore: 1.8, tAfter: 3.2, tPct: 1.4,  pBefore: 65.8, pAfter: 55.9, pDelta: 9.9,  dateRange: "Apr 29 to Jun 27 → Jun 28 to Aug 26", sparkBefore: [15,14,16,13,15,14,16,15], sparkAfter: [18,22,25,28,30,32,35,38] },
-  { date: "Aug 21, 2024", title: "Feature Posts Update",                    scope: "Content Group",   cBefore: 16,   cAfter: 80,    cPct: 400, iBefore: 6400,  iAfter: 17100,  iPct: 164, tBefore: 0.2, tAfter: 0.5, tPct: 0.3,  pBefore: 37.4, pAfter: 47.6, pDelta: 10.2, dateRange: "Jun 22 to Aug 20 → Aug 21 to Oct 19", sparkBefore: [5,6,4,7,5,6,5,6],        sparkAfter: [8,12,18,25,32,40,48,55]  },
-  { date: "Aug 5, 2024",  title: "Updated /features/branded-keywords",      scope: "Specific Page(s)", cBefore: 4,    cAfter: 32,    cPct: 700, iBefore: 2000,  iAfter: 11200,  iPct: 456, tBefore: 0.2, tAfter: 0.3, tPct: 0.1,  pBefore: 51.3, pAfter: 48.8, pDelta: 2.5,  dateRange: "Jun 6 to Aug 4 → Aug 5 to Oct 3",    sparkBefore: [2,3,2,3,2,3,2,3],        sparkAfter: [4,8,12,18,22,26,30,32]   },
+const getMockAnnotations = (t: any): AnnotationNote[] => [
+  { date: "Sep 5, 2024",  title: t("annMovedToAstro"),          scope: t("annAllPages"),       cBefore: 1500, cAfter: 2000,  cPct: 36,  iBefore: 49200, iAfter: 176300, iPct: 258, tBefore: 3.1, tAfter: 1.2, tPct: 1.9,  pBefore: 55.3, pAfter: 58,   pDelta: 2.7,  dateRange: "Jul 5 to Sep 3 → Sep 6 to Nov 5",    sparkBefore: [20,22,18,25,23,21,28,30], sparkAfter: [32,38,42,45,50,55,58,62] },
+  { date: "Jun 28, 2024", title: t("annRedirectGlossary"),    scope: t("annAllPages"),       cBefore: 683,  cAfter: 1400,  cPct: 118, iBefore: 37900, iAfter: 46400,  iPct: 22,  tBefore: 1.8, tAfter: 3.2, tPct: 1.4,  pBefore: 65.8, pAfter: 55.9, pDelta: 9.9,  dateRange: "Apr 29 to Jun 27 → Jun 28 to Aug 26", sparkBefore: [15,14,16,13,15,14,16,15], sparkAfter: [18,22,25,28,30,32,35,38] },
+  { date: "Aug 21, 2024", title: t("annFeaturePostsUpdate"),                    scope: t("annContentGroup"),   cBefore: 16,   cAfter: 80,    cPct: 400, iBefore: 6400,  iAfter: 17100,  iPct: 164, tBefore: 0.2, tAfter: 0.5, tPct: 0.3,  pBefore: 37.4, pAfter: 47.6, pDelta: 10.2, dateRange: "Jun 22 to Aug 20 → Aug 21 to Oct 19", sparkBefore: [5,6,4,7,5,6,5,6],        sparkAfter: [8,12,18,25,32,40,48,55]  },
+  { date: "Aug 5, 2024",  title: t("annUpdatedBrandedKw"),      scope: t("annSpecificPages"), cBefore: 4,    cAfter: 32,    cPct: 700, iBefore: 2000,  iAfter: 11200,  iPct: 456, tBefore: 0.2, tAfter: 0.3, tPct: 0.1,  pBefore: 51.3, pAfter: 48.8, pDelta: 2.5,  dateRange: "Jun 6 to Aug 4 → Aug 5 to Oct 3",    sparkBefore: [2,3,2,3,2,3,2,3],        sparkAfter: [4,8,12,18,22,26,30,32]   },
 ];
 
 function AnnotationsTab({ period, setPeriod, periodOptions }: {
   period: string; setPeriod: (p: string) => void; periodOptions: string[];
 }) {
+  const { t } = useLanguage();
   const [viewMode, setViewMode] = useState<"notes" | "updates">("notes");
   const [onboarding, setOnboarding] = useState(true);
   const [showAddNote, setShowAddNote] = useState(false);
@@ -881,7 +882,7 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
 
   const toggleMetric = (m: Metric) => setActiveMetrics(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
 
-  const displayNotes = [...notes, ...MOCK_ANNOTATIONS];
+  const displayNotes = notes.length > 0 ? notes : (onboarding ? getMockAnnotations(t) : []);
 
   const fK = (n: number) => n >= 1000 ? `${(n/1000).toFixed(1)}k` : String(n);
 
@@ -894,8 +895,8 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
         {/* Notes / Updates toggle */}
         <div style={{ display: "flex", gap: "4px" }}>
           {([
-            { key: "notes",   label: "Notes",   icon: <FileText size={13}/> },
-            { key: "updates", label: "Updates", icon: <GoogleIcon size={13}/> },
+            { key: "notes",   label: t("annNotes"),   icon: <FileText size={13}/> },
+            { key: "updates", label: t("annUpdates"), icon: <GoogleIcon size={13}/> },
           ] as const).map(({ key, label, icon }) => (
             <button key={key} onClick={() => setViewMode(key)} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", fontSize: "13px", fontWeight: 500, cursor: "pointer", border: `1px solid ${viewMode === key ? "#3B82F6" : "var(--color-border)"}`, background: viewMode === key ? "rgba(59,130,246,0.1)" : "var(--color-bg)", color: viewMode === key ? "#3B82F6" : "var(--color-text-secondary)", transition: "all 0.15s" }}>
               {icon} {label}
@@ -961,7 +962,7 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
                   <Sparkles size={11} color={C.clicks} />
                   <span style={{ color: "var(--color-text-secondary)" }}>{fK(note.cBefore)}</span>
                   <span style={{ color: "var(--color-text-secondary)" }}>→</span>
-                  <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{fK(note.cAfter)} clicks</span>
+                  <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{fK(note.cAfter)} {t("clicks").toLowerCase()}</span>
                   <span style={{ color: "#10B981", fontSize: "11px", fontWeight: 600 }}>+{note.cPct}%</span>
                 </div>
               )}
@@ -970,7 +971,7 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
                   <Eye size={11} color={C.impressions} />
                   <span style={{ color: "var(--color-text-secondary)" }}>{fK(note.iBefore)}</span>
                   <span style={{ color: "var(--color-text-secondary)" }}>→</span>
-                  <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{fK(note.iAfter)} impressions</span>
+                  <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{fK(note.iAfter)} {t("impressions").toLowerCase()}</span>
                   <span style={{ color: "#10B981", fontSize: "11px", fontWeight: 600 }}>+{note.iPct}%</span>
                 </div>
               )}
@@ -988,7 +989,7 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
                   <MoveUp size={11} color={C.position} />
                   <span style={{ color: "var(--color-text-secondary)" }}>{note.pBefore}</span>
                   <span style={{ color: "var(--color-text-secondary)" }}>→</span>
-                  <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{note.pAfter} avg. position</span>
+                  <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{note.pAfter} {t("avgPosition")}</span>
                   <span style={{ color: "#6b7280", fontSize: "11px", fontWeight: 600 }}>+{note.pDelta}</span>
                 </div>
               )}
@@ -997,12 +998,19 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
         ))}
       </div>
 
+      {/* Empty state when not onboarding and no notes */}
+      {!onboarding && notes.length === 0 && (
+        <div style={{ padding: "64px 32px", textAlign: "center" }}>
+          <p style={{ fontSize: "14px", color: "var(--color-text-secondary)" }}>{t("annEmptyDesc", "You don't have any notes yet.")}</p>
+        </div>
+      )}
+
       {/* ── Onboarding overlay ── */}
       {onboarding && (
         <div style={{ position: "absolute", top: "61px", left: 0, right: 0, bottom: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "24px", zIndex: 10 }}>
           <div style={{ background: "var(--color-card)", borderRadius: "20px", border: "1px solid var(--color-border)", boxShadow: "0 16px 64px rgba(0,0,0,0.45)", width: "100%", maxWidth: "620px", overflow: "hidden", padding: "32px" }}>
-            <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text-primary)", textAlign: "center", marginBottom: "6px" }}>Annotations</h2>
-            <p style={{ fontSize: "14px", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: "24px" }}>Create your first note to get started</p>
+            <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text-primary)", textAlign: "center", marginBottom: "6px" }}>{t("tabAnnotations")}</h2>
+            <p style={{ fontSize: "14px", color: "var(--color-text-secondary)", textAlign: "center", marginBottom: "24px" }}>{t("annCreateFirstNote")}</p>
 
             {/* YouTube preview */}
             <div style={{ borderRadius: "12px", overflow: "hidden", aspectRatio: "16/9", background: "#0f172a", cursor: "pointer", marginBottom: "24px", position: "relative" }}
@@ -1034,13 +1042,13 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
             <button
               onClick={() => { setOnboarding(false); setShowAddNote(true); }}
               style={{ width: "100%", padding: "13px", borderRadius: "10px", border: "none", background: "linear-gradient(90deg, #2563EB 0%, #7C3AED 100%)", color: "#fff", fontSize: "15px", fontWeight: 700, cursor: "pointer", marginBottom: "14px", boxShadow: "0 4px 16px rgba(37,99,235,0.35)" }}>
-              + Create your first note
+              {t("annCreateNoteBtn")}
             </button>
 
             <p style={{ textAlign: "center", fontSize: "13px", color: "var(--color-text-secondary)" }}>
-              or try it with{" "}
+              {t("annOrTryItWith")}{" "}
               <button onClick={() => { setOnboarding(false); setViewMode("updates"); }} style={{ display: "inline-flex", alignItems: "center", gap: "4px", background: "none", border: "none", cursor: "pointer", color: "var(--color-text-primary)", fontWeight: 600, fontSize: "13px", padding: 0 }}>
-                <GoogleIcon size={14} /> Updates
+                <GoogleIcon size={14} /> {t("annUpdates")}
               </button>
             </p>
           </div>
@@ -1059,7 +1067,7 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
       {!onboarding && (
         <div style={{ position: "fixed", bottom: "32px", right: "32px", zIndex: 50 }}>
           <button onClick={() => setShowAddNote(true)} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "12px 20px", borderRadius: "12px", border: "none", background: "#3B82F6", color: "#fff", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px rgba(59,130,246,0.4)" }}>
-            + Add Note
+            {t("annAddNote")}
           </button>
         </div>
       )}
