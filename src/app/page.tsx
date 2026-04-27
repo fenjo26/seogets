@@ -43,7 +43,31 @@ function norm(arr: number[]): number[] {
   return hi === lo ? arr.map(() => 50) : arr.map(v => Math.round(((v - lo) / (hi - lo)) * 85 + 5));
 }
 
-function makeSiteData(n = 14): { data: Pt[]; summary: Record<Metric, { value: number; change: number }> } {
+function periodToDays(period: string): number {
+  const today = new Date();
+  const map: Record<string, number> = {
+    yesterday:    1,
+    "7d":         7,
+    "14d":        14,
+    "28d":        28,
+    last_week:    7,
+    this_month:   today.getDate(),
+    last_month:   new Date(today.getFullYear(), today.getMonth(), 0).getDate(),
+    this_quarter: 90,
+    last_quarter: 90,
+    ytd:          Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 1).getTime()) / 86400000),
+    "3m":         90,
+    "6m":         180,
+    "8m":         240,
+    "12m":        365,
+    "16m":        480,
+    "2y":         730,
+    "3y":         1095,
+  };
+  return map[period] ?? 28;
+}
+
+function makeSiteData(n = 14, startDate?: Date): { data: Pt[]; summary: Record<Metric, { value: number; change: number }> } {
   let c = 20 + Math.random() * 150,
       im = c * (12 + Math.random() * 25),
       t  = 2 + Math.random() * 12,
@@ -67,13 +91,20 @@ function makeSiteData(n = 14): { data: Pt[]; summary: Record<Metric, { value: nu
   const nC = norm(rc), nI = norm(ri), nT = norm(rt), nP = norm(rp);
   const nCC = norm(rcC), nIC = norm(riC), nTC = norm(rtC), nPC = norm(rpC);
 
-  const data: Pt[] = rc.map((_, i) => ({
-    date: `Day ${i + 1}`,
-    clicks: rc[i], impressions: ri[i], ctr: rt[i], position: rp[i],
-    clicksC: rcC[i], impressionsC: riC[i], ctrC: rtC[i], positionC: rpC[i],
-    cN: nC[i], iN: nI[i], tN: nT[i], pN: nP[i],
-    cCN: nCC[i], iCN: nIC[i], tCN: nTC[i], pCN: nPC[i],
-  }));
+  const base = startDate ? new Date(startDate) : (() => { const d = new Date(); d.setDate(d.getDate() - n); return d; })();
+
+  const data: Pt[] = rc.map((_, i) => {
+    const d = new Date(base);
+    d.setDate(base.getDate() + i);
+    const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: n > 365 ? "numeric" : undefined });
+    return {
+      date: dateStr,
+      clicks: rc[i], impressions: ri[i], ctr: rt[i], position: rp[i],
+      clicksC: rcC[i], impressionsC: riC[i], ctrC: rtC[i], positionC: rpC[i],
+      cN: nC[i], iN: nI[i], tN: nT[i], pN: nP[i],
+      cCN: nCC[i], iCN: nIC[i], tCN: nTC[i], pCN: nPC[i],
+    };
+  });
 
   const last = n - 1, mid = Math.floor(n / 2);
   const pct = (a: number, b: number) => b === 0 ? 0 : Math.round(((a - b) / b) * 100);
@@ -361,7 +392,14 @@ export default function PortfolioPage() {
     fetch("/api/gsc/sites").then(r => r.json()).then(d => { if (d.sites) setSites(d.sites); }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const sitesWithData = useMemo(() => sites.map(s => ({ ...s, ...makeSiteData() })), [sites]);
+  const sitesWithData = useMemo(() => {
+    const days = periodToDays(period);
+    const maxPoints = 90;
+    const n = Math.min(days, maxPoints);
+    const startDate = new Date(yesterday);
+    startDate.setDate(yesterday.getDate() - n + 1);
+    return sites.map(s => ({ ...s, ...makeSiteData(n, startDate) }));
+  }, [sites, period]); // eslint-disable-line react-hooks/exhaustive-deps
   const filtered    = sitesWithData.filter(s => getDomain(s.url).toLowerCase().includes(search.toLowerCase()));
   const favSites    = filtered.filter(s => favorites.has(s.id) && !hidden.has(s.id));
   const restSites   = filtered.filter(s => !favorites.has(s.id) && !hidden.has(s.id));
