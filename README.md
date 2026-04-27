@@ -52,13 +52,32 @@ cd seogets
 
 ### 3. Создай Google OAuth приложение
 
-Перед запуском установщика нужны Google OAuth credentials:
+Перед запуском установщика нужны Google OAuth credentials. Занимает ~5 минут.
 
-1. Открой [Google Cloud Console](https://console.cloud.google.com/) → создай проект
-2. **APIs & Services → Credentials → Create OAuth 2.0 Client ID** (тип: Web application)
-3. В поле **Authorized redirect URIs** добавь: `https://твой-домен.com/api/auth/callback/google`
-4. **APIs & Services → Library** → найди и включи **Google Search Console API**
-5. Скопируй **Client ID** и **Client Secret** — установщик их спросит
+**Шаг 1 — Создай проект**
+
+Открой [Google Cloud Console](https://console.cloud.google.com/) и создай новый проект (или используй существующий).
+
+**Шаг 2 — Включи Search Console API**
+
+APIs & Services → Library → найди **Google Search Console API** → Enable.
+
+**Шаг 3 — Создай OAuth Client ID**
+
+APIs & Services → Credentials → Create Credentials → **OAuth 2.0 Client ID**, тип: **Web application**.
+
+Заполни два поля:
+
+| Поле | Значение |
+|---|---|
+| Authorized JavaScript origins | `https://твой-домен.com` |
+| Authorized redirect URIs | `https://твой-домен.com/api/auth/callback/google` |
+
+> **Используешь VPS без домена?** Замени `https://твой-домен.com` на `http://IP_СЕРВЕРА:3000` (именно `http://`, не `https://`).
+
+**Шаг 4 — Скопируй credentials**
+
+После создания появятся **Client ID** и **Client Secret** — установщик их спросит.
 
 ### 4. Запусти установщик
 
@@ -70,7 +89,8 @@ sudo bash install.sh
 - Домен или IP сервера
 - Порт приложения (по умолчанию 3000)
 - Устанавливать ли Nginx (рекомендуется — да)
-- Настраивать ли SSL через Let's Encrypt (только если есть домен)
+- Настраивать ли SSL через Let's Encrypt (только если есть реальный домен)
+- Email для SSL-сертификата
 - Google Client ID и Client Secret
 
 После этого сам:
@@ -79,6 +99,87 @@ sudo bash install.sh
 - Настроит Nginx как reverse proxy
 - Опционально выпустит SSL-сертификат через Certbot
 - Настроит UFW firewall (порты 22, 80, 443)
+
+---
+
+## Варианты деплоя
+
+### Вариант A: Домен + HTTPS (рекомендуется)
+
+Лучший вариант для продакшна. Нужен домен, привязанный к IP сервера.
+
+В Google Console:
+```
+Authorized JavaScript origins:  https://твой-домен.com
+Authorized redirect URIs:        https://твой-домен.com/api/auth/callback/google
+```
+
+В установщике: домен → `твой-домен.com`, SSL → `Y`.
+
+Результат: `https://твой-домен.com`
+
+### Вариант B: VPS по IP, без домена
+
+Подходит для личного использования. Работает без SSL (браузер покажет «небезопасно»).
+
+В Google Console:
+```
+Authorized JavaScript origins:  http://123.45.67.89:3000
+Authorized redirect URIs:        http://123.45.67.89:3000/api/auth/callback/google
+```
+
+В установщике: домен → `123.45.67.89`, SSL → `N`.
+
+Результат: `http://123.45.67.89:3000`
+
+### Вариант C: Ручная установка
+
+Если хочешь настроить всё самостоятельно без скрипта:
+
+```bash
+# Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+sudo apt-get install -y nodejs
+
+# PM2
+npm install -g pm2
+
+# Зависимости проекта
+npm install
+
+# .env — скопируй шаблон и заполни
+cp .env.template .env
+nano .env
+
+# База данных и сборка
+npx prisma generate
+npx prisma db push
+npm run build
+
+# Запуск
+pm2 start npm --name seogets -- start
+pm2 save
+pm2 startup
+```
+
+---
+
+## Переменные окружения
+
+| Переменная | Описание | Пример |
+|---|---|---|
+| `DATABASE_URL` | Путь к SQLite базе данных | `file:/home/user/seogets/data/prod.db` |
+| `NEXTAUTH_SECRET` | Случайный секрет для шифрования сессий | `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Полный URL твоего приложения | `https://твой-домен.com` |
+| `GOOGLE_CLIENT_ID` | Из Google Cloud Console | `123...apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Из Google Cloud Console | `GOCSPX-...` |
+
+> `NEXTAUTH_URL` должен **точно совпадать** с тем, что указано в Google Console. Если там `https://` — здесь тоже `https://`. Несовпадение = ошибка `redirect_uri_mismatch`.
+
+Сгенерировать секрет:
+```bash
+openssl rand -base64 32
+```
 
 ---
 
@@ -107,8 +208,36 @@ pm2 status             # статус всех процессов
 cd /root/seogets
 git pull
 npm install
+npx prisma migrate deploy
 npm run build
 pm2 restart seogets
+```
+
+---
+
+## Частые проблемы
+
+**Логотип не отображается на странице входа**
+
+В middleware не были исключены публичные файлы. Убедись что используешь актуальную версию `src/middleware.ts` из репозитория.
+
+**Ошибка `redirect_uri_mismatch` при входе через Google**
+
+URL в `.env` (`NEXTAUTH_URL`) не совпадает с Authorized redirect URI в Google Console. Они должны быть одинаковыми — вплоть до `http://` vs `https://`.
+
+**Бесконечный редирект на `/login` после входа**
+
+Проверь `NEXTAUTH_URL` в `.env`. Если приложение работает по HTTPS — убедись что SSL-сертификат действителен. Если по HTTP — проверь что в `NEXTAUTH_URL` нет `https://`.
+
+**База данных пропала после перезапуска**
+
+Используй абсолютный путь в `DATABASE_URL`, не относительный. Установщик делает это автоматически (`file:/root/seogets/data/prod.db`). При ручной установке задай путь явно.
+
+**`pm2 restart seogets` не помогает после `git pull`**
+
+После обновления нужно пересобрать проект:
+```bash
+npm run build && pm2 restart seogets
 ```
 
 ---

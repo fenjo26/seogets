@@ -114,8 +114,11 @@ else
   read -rsp "  Google Client Secret: " GOOGLE_CLIENT_SECRET
   echo ""
 
+  DB_PATH="$(pwd)/data/prod.db"
+  mkdir -p "$(pwd)/data"
+
   cat > .env <<EOF
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="file:${DB_PATH}"
 
 # NextAuth
 NEXTAUTH_SECRET="${SECRET}"
@@ -195,7 +198,9 @@ EOF
   if [[ "${SETUP_SSL^^}" == "Y" ]]; then
     header "SSL (Let's Encrypt)"
     apt-get install -y -qq certbot python3-certbot-nginx
-    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "admin@${DOMAIN}" || \
+    read -rp "  Email for SSL certificate (Let's Encrypt): " SSL_EMAIL
+    SSL_EMAIL=${SSL_EMAIL:-"admin@${DOMAIN}"}
+    certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m "${SSL_EMAIL}" || \
       warn "SSL setup failed — make sure the domain points to this server's IP"
     success "SSL certificate installed"
   fi

@@ -7,6 +7,7 @@ import { Settings, LogOut } from "lucide-react";
 import { usePrivacy } from "@/lib/PrivacyContext";
 import { useTheme } from "@/lib/ThemeContext";
 import { useLayout } from "@/lib/LayoutContext";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 // ─── Popup menu helpers ───────────────────────────────────────────────────────
 function MenuItem({ icon, label, onClick }: { icon: string; label: string; onClick?: () => void }) {
@@ -67,6 +68,7 @@ function SelectItem({ icon, label, value }: { icon: string; label: string; value
 const USDT_ADDRESS = "TN7v2NArTXd5J2eMuGFpXmgzAFsoZpWcZu";
 
 function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose: () => void }) {
+  const { t } = useLanguage();
   const [text, setText] = useState("");
   const [sent, setSent] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -114,12 +116,10 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
         }}>
           <div>
             <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-text-primary)" }}>
-              {mode === "feedback" ? "Give Feedback" : "Support the Developer"}
+              {mode === "feedback" ? t("modalFeedbackTitle") : t("modalThanksTitle")}
             </div>
             <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>
-              {mode === "feedback"
-                ? "Share your thoughts — I read everything"
-                : "Your support keeps this project alive"}
+              {mode === "feedback" ? t("modalFeedbackSubtitle") : t("modalThanksSubtitle")}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -139,17 +139,17 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
               <div style={{ textAlign: "center", padding: "16px 0" }}>
                 <div style={{ fontSize: "32px", marginBottom: "10px" }}>🎉</div>
                 <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text-primary)" }}>
-                  Telegram opened!
+                  {t("telegramOpened")}
                 </div>
                 <div style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginTop: "6px" }}>
-                  Your message is pre-filled — just hit send.
+                  {t("telegramPreFilled")}
                 </div>
                 <button onClick={onClose} style={{
                   marginTop: "20px", padding: "9px 24px",
                   background: "var(--color-accent-purple)", color: "#fff",
                   border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
                   cursor: "pointer",
-                }}>Close</button>
+                }}>{t("close")}</button>
               </div>
             ) : (
               <>
@@ -171,14 +171,14 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
                   <span style={{ fontSize: "20px" }}>✈️</span>
                   <div>
                     <div style={{ fontSize: "13px", fontWeight: 600, color: "#29acd9" }}>@fenjo26</div>
-                    <div style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>Telegram · Usually replies fast</div>
+                    <div style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>{t("feedbackTelegramHint")}</div>
                   </div>
                   <span style={{ marginLeft: "auto", fontSize: "12px", color: "var(--color-text-secondary)" }}>↗</span>
                 </a>
                 <textarea
                   value={text}
                   onChange={e => setText(e.target.value)}
-                  placeholder="Bug, feature idea, something annoying..."
+                  placeholder={t("feedbackPlaceholder")}
                   rows={4}
                   style={{
                     width: "100%", resize: "none",
@@ -193,7 +193,7 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
                   onBlur={e => (e.currentTarget.style.borderColor = "var(--color-border)")}
                 />
                 <div style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "6px", marginBottom: "16px" }}>
-                  This will open Telegram with your message pre-filled.
+                  {t("feedbackHint")}
                 </div>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <button onClick={onClose} style={{
@@ -202,7 +202,7 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
                     border: "1px solid var(--color-border)",
                     borderRadius: "8px", fontSize: "13px",
                     color: "var(--color-text-secondary)", cursor: "pointer",
-                  }}>Cancel</button>
+                  }}>{t("cancel")}</button>
                   <button
                     onClick={handleSend}
                     disabled={!text.trim()}
@@ -214,7 +214,7 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
                       cursor: text.trim() ? "pointer" : "not-allowed",
                       transition: "background 0.15s",
                     }}
-                  >Send Feedback →</button>
+                  >{t("sendFeedback")}</button>
                 </div>
               </>
             )
@@ -232,10 +232,10 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
               }}>
                 <div style={{ fontSize: "22px", marginBottom: "8px" }}>👋</div>
                 <div style={{ fontSize: "13px", color: "var(--color-text-primary)", lineHeight: "1.6", fontWeight: 500 }}>
-                  Hey! I&apos;m an independent developer who built SEO Gets as a free tool for everyone.
+                  {t("devStory")}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: "1.6", marginTop: "6px" }}>
-                  No VC funding, no team, no ads — just me and a lot of coffee. If this tool saves you time or money, a small donation means a lot and helps keep development going.
+                  {t("devStoryDetail")}
                 </div>
               </div>
 
@@ -278,7 +278,7 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
                   </button>
                 </div>
                 <div style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "6px" }}>
-                  ⚠️ Only send USDT on the TRC-20 (Tron) network to this address.
+                  {t("usdtNote")}
                 </div>
               </div>
 
@@ -286,14 +286,14 @@ function FeedbackModal({ mode, onClose }: { mode: "feedback" | "thanks"; onClose
 
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <div style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
-                  Thank you — it really matters 🙏
+                  {t("thankYou")}
                 </div>
                 <button onClick={onClose} style={{
                   padding: "7px 20px",
                   background: "var(--color-accent-purple)", color: "#fff",
                   border: "none", borderRadius: "8px",
                   fontSize: "13px", fontWeight: 600, cursor: "pointer",
-                }}>Close</button>
+                }}>{t("close")}</button>
               </div>
             </>
           )}
@@ -457,6 +457,7 @@ function TopBar() {
   const { blur, setBlur } = usePrivacy();
   const { dark, setDark } = useTheme();
   const { layout, setLayout } = useLayout();
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [modal, setModal] = useState<"feedback" | "thanks" | null>(null);
   const user = session?.user;
@@ -540,7 +541,7 @@ function TopBar() {
                 </div>
 
                 <div style={{ padding: "6px 0" }}>
-                  <MenuItem icon="⚙️" label="Settings" onClick={() => { setOpen(false); router.push("/settings"); }} />
+                  <MenuItem icon="⚙️" label={t("navSettings")} onClick={() => { setOpen(false); router.push("/settings"); }} />
                 </div>
 
                 <div style={{ height: "1px", background: "var(--color-border)" }} />
@@ -558,7 +559,7 @@ function TopBar() {
                     onMouseOut={e => { if (!blur) e.currentTarget.style.background = "transparent"; }}
                   >
                     <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>📷</span>
-                    <span style={{ flex: 1, textAlign: "left" }}>Privacy Blur</span>
+                    <span style={{ flex: 1, textAlign: "left" }}>{t("privacyBlur")}</span>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: blur ? "#10B981" : "#6b7280" }}>
                       {blur ? "ON" : "OFF"}
                     </span>
@@ -575,7 +576,7 @@ function TopBar() {
                     onMouseOut={e => { if (!dark) e.currentTarget.style.background = "transparent"; }}
                   >
                     <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>🌙</span>
-                    <span style={{ flex: 1, textAlign: "left" }}>Dark Mode</span>
+                    <span style={{ flex: 1, textAlign: "left" }}>{t("darkMode")}</span>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: dark ? "#10B981" : "#6b7280" }}>
                       {dark ? "ON" : "OFF"}
                     </span>
@@ -592,9 +593,9 @@ function TopBar() {
                     onMouseOut={e => { if (layout !== "default") e.currentTarget.style.background = "transparent"; }}
                   >
                     <span style={{ fontSize: "14px", width: "18px", textAlign: "center" }}>⇥</span>
-                    <span style={{ flex: 1, textAlign: "left" }}>Layout</span>
+                    <span style={{ flex: 1, textAlign: "left" }}>{t("layout")}</span>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: layout === "default" ? "#10B981" : "#6b7280" }}>
-                      {layout === "wide" ? "Wide" : "Default"}
+                      {layout === "wide" ? t("layoutWide") : t("layoutDefault")}
                     </span>
                   </button>
                 </div>
@@ -602,8 +603,8 @@ function TopBar() {
                 <div style={{ height: "1px", background: "var(--color-border)" }} />
 
                 <div style={{ padding: "6px 0" }}>
-                  <MenuItem icon="♡" label="Give Feedback" onClick={() => { setOpen(false); setModal("feedback"); }} />
-                  <MenuItem icon="🙏" label="Support Developer" onClick={() => { setOpen(false); setModal("thanks"); }} />
+                  <MenuItem icon="♡" label={t("giveFeedback")} onClick={() => { setOpen(false); setModal("feedback"); }} />
+                  <MenuItem icon="🙏" label={t("supportDeveloper")} onClick={() => { setOpen(false); setModal("thanks"); }} />
                 </div>
 
                 <div style={{ height: "1px", background: "var(--color-border)" }} />
@@ -619,7 +620,7 @@ function TopBar() {
                     onMouseOut={e => e.currentTarget.style.background = "transparent"}
                   >
                     <LogOut size={14} />
-                    Sign out
+                    {t("signOut")}
                   </button>
                 </div>
               </div>

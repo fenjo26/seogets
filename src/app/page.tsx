@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Search, Eye, EyeOff, Star, ExternalLink,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { usePrivacy } from "@/lib/PrivacyContext";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Metric = "clicks" | "impressions" | "ctr" | "position";
@@ -22,64 +23,17 @@ type BrandedFilter = "all" | "branded" | "nonbranded";
 
 // ─── Metric config ────────────────────────────────────────────────────────────
 const MC = {
-  clicks:      { label: "Clicks",        color: "#3B82F6", bg: "rgba(59,130,246,0.12)"  },
-  impressions: { label: "Impressions",   color: "#8B5CF6", bg: "rgba(139,92,246,0.12)" },
-  ctr:         { label: "CTR",           color: "#10B981", bg: "rgba(16,185,129,0.12)" },
-  position:    { label: "Avg. Position", color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
+  clicks:      { color: "#3B82F6", bg: "rgba(59,130,246,0.12)"  },
+  impressions: { color: "#8B5CF6", bg: "rgba(139,92,246,0.12)" },
+  ctr:         { color: "#10B981", bg: "rgba(16,185,129,0.12)" },
+  position:    { color: "#F59E0B", bg: "rgba(245,158,11,0.12)" },
 } as const;
-
-// ─── Period helpers ───────────────────────────────────────────────────────────
-function buildPeriodGroups() {
-  const fmt    = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-  const fmtDay = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-  const today     = new Date();
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const ago   = (n: number) => { const d = new Date(yesterday); d.setDate(yesterday.getDate() - n + 1); return d; };
-  const mAgo  = (n: number) => { const d = new Date(yesterday); d.setMonth(d.getMonth() - n); return d; };
-  const yAgo  = (n: number) => { const d = new Date(yesterday); d.setFullYear(d.getFullYear() - n); return d; };
-  const r = (a: Date, b: Date) => `${fmt(a)} – ${fmt(b)}`;
-  return [
-    [
-      { label: fmtDay(yesterday), value: "yesterday", desc: "" },
-      { label: "7 days",   value: "7d",  desc: r(ago(7),  yesterday) },
-      { label: "14 days",  value: "14d", desc: r(ago(14), yesterday) },
-      { label: "28 days",  value: "28d", desc: r(ago(28), yesterday) },
-    ],
-    [
-      { label: "Last Week",   value: "last_week",   desc: "" },
-      { label: "This Month",  value: "this_month",  desc: "" },
-      { label: "Last Month",  value: "last_month",  desc: "" },
-    ],
-    [
-      { label: "This Quarter", value: "this_quarter", desc: "" },
-      { label: "Last Quarter", value: "last_quarter", desc: "" },
-      { label: "Year to Date", value: "ytd",          desc: "" },
-    ],
-    [
-      { label: "3 months",  value: "3m",  desc: r(mAgo(3),  yesterday) },
-      { label: "6 months",  value: "6m",  desc: r(mAgo(6),  yesterday) },
-      { label: "8 months",  value: "8m",  desc: r(mAgo(8),  yesterday) },
-      { label: "12 months", value: "12m", desc: r(mAgo(12), yesterday) },
-      { label: "16 months", value: "16m", desc: r(mAgo(16), yesterday) },
-    ],
-    [
-      { label: "2 years", value: "2y",     desc: r(yAgo(2), yesterday) },
-      { label: "3 years", value: "3y",     desc: r(yAgo(3), yesterday) },
-      { label: "Custom",  value: "custom", desc: "" },
-    ],
-  ];
-}
-function getPeriodLabel(v: string) {
-  for (const g of buildPeriodGroups()) for (const p of g) if (p.value === v) return p.label;
-  return v;
-}
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
 interface Pt {
   date: string;
   clicks: number; impressions: number; ctr: number; position: number;
   clicksC: number; impressionsC: number; ctrC: number; positionC: number;
-  // normalized 0–95 for display
   cN: number; iN: number; tN: number; pN: number;
   cCN: number; iCN: number; tCN: number; pCN: number;
 }
@@ -152,11 +106,11 @@ function getDomain(url: string) {
 
 // ─── Export helpers ───────────────────────────────────────────────────────────
 const EXPORT_COLS = [
-  { key: "date",    label: "Date",    rows: 7   },
-  { key: "page",    label: "Page",    rows: 35  },
-  { key: "query",   label: "Query",   rows: 200 },
-  { key: "country", label: "Country", rows: 56  },
-  { key: "device",  label: "Device",  rows: 3   },
+  { key: "date",    rows: 7   },
+  { key: "page",    rows: 35  },
+  { key: "query",   rows: 200 },
+  { key: "country", rows: 56  },
+  { key: "device",  rows: 3   },
 ] as const;
 type ExportCol = typeof EXPORT_COLS[number]["key"];
 
@@ -199,7 +153,16 @@ function downloadCSV(domain: string, cols: Set<ExportCol>) {
 
 // ─── Advanced Export Modal ────────────────────────────────────────────────────
 function ExportModal({ domain, onClose }: { domain: string; onClose: () => void }) {
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<Set<ExportCol>>(new Set());
+
+  const colLabel: Record<ExportCol, string> = {
+    date:    t("exportColDate"),
+    page:    t("filterPage"),
+    query:   t("filterQuery"),
+    country: t("filterCountry"),
+    device:  t("filterDevice"),
+  };
 
   const toggle = (k: ExportCol) => setSelected(p => {
     const n = new Set(p); n.has(k) ? n.delete(k) : n.add(k); return n;
@@ -213,11 +176,11 @@ function ExportModal({ domain, onClose }: { domain: string; onClose: () => void 
         <button onClick={onClose} style={{ position: "absolute", top: "16px", right: "16px", background: "none", border: "none", cursor: "pointer", color: "#888" }}>
           <X size={20} />
         </button>
-        <h2 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>Advanced Export</h2>
-        <p style={{ fontSize: "14px", color: "#555", marginBottom: "24px" }}>Which columns would you like to include in the export?</p>
+        <h2 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "8px" }}>{t("advancedExport")}</h2>
+        <p style={{ fontSize: "14px", color: "#555", marginBottom: "24px" }}>{t("exportDesc")}</p>
 
         <div style={{ display: "flex", gap: "24px", flexWrap: "wrap", marginBottom: "28px" }}>
-          {EXPORT_COLS.map(({ key, label, rows }) => {
+          {EXPORT_COLS.map(({ key, rows }) => {
             const active = selected.has(key);
             return (
               <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: "8px", cursor: "pointer" }}>
@@ -230,8 +193,8 @@ function ExportModal({ domain, onClose }: { domain: string; onClose: () => void 
                   {active && <Check size={11} color="#fff" strokeWidth={3} />}
                 </div>
                 <div>
-                  <div style={{ fontSize: "14px", fontWeight: 600 }}>{label}</div>
-                  <div style={{ fontSize: "12px", color: "#999" }}>{rows} rows</div>
+                  <div style={{ fontSize: "14px", fontWeight: 600 }}>{colLabel[key]}</div>
+                  <div style={{ fontSize: "12px", color: "#999" }}>{rows} {t("rows")}</div>
                 </div>
               </label>
             );
@@ -246,11 +209,9 @@ function ExportModal({ domain, onClose }: { domain: string; onClose: () => void 
               background: selected.size > 0 ? "#4b5563" : "#9ca3af", color: "#fff", border: "none",
             }}
           >
-            Export to CSV
+            {t("exportToCSV")}
           </button>
-          <p style={{ fontSize: "12px", color: "#888", flex: 1 }}>
-            This export has unlimited rows and may take a while to complete if you select too many columns, please be patient.
-          </p>
+          <p style={{ fontSize: "12px", color: "#888", flex: 1 }}>{t("exportWarning")}</p>
         </div>
       </div>
     </div>
@@ -259,9 +220,16 @@ function ExportModal({ domain, onClose }: { domain: string; onClose: () => void 
 
 // ─── Custom tooltip ───────────────────────────────────────────────────────────
 function ChartTooltip({ active, payload }: any) {
+  const { t } = useLanguage();
   if (!active || !payload?.length) return null;
   const d = payload[0]?.payload as Pt;
   if (!d) return null;
+  const metricLabels: Record<Metric, string> = {
+    clicks:      t("clicks"),
+    impressions: t("impressions"),
+    ctr:         "CTR",
+    position:    t("avgPosition"),
+  };
   const rows: { m: Metric; curr: string; prev: string; pct: string }[] = [
     { m: "clicks",      curr: String(d.clicks),    prev: String(d.clicksC),     pct: pctStr(d.clicks, d.clicksC) },
     { m: "impressions", curr: fmtK(d.impressions), prev: fmtK(d.impressionsC),  pct: pctStr(d.impressions, d.impressionsC) },
@@ -273,13 +241,13 @@ function ChartTooltip({ active, payload }: any) {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 50px", gap: "2px 8px", marginBottom: "6px", paddingBottom: "6px", borderBottom: "1px solid #e5e7eb", color: "#888", fontSize: "11px" }}>
         <div />
         <div style={{ textAlign: "right", fontWeight: 500 }}>{d.date}</div>
-        <div style={{ textAlign: "right", borderBottom: "2px dashed #ccc", paddingBottom: "2px" }}>Prev</div>
+        <div style={{ textAlign: "right", borderBottom: "2px dashed #ccc", paddingBottom: "2px" }}>{t("prev")}</div>
       </div>
       {rows.map(({ m, curr, prev, pct }) => (
         <div key={m} style={{ display: "grid", gridTemplateColumns: "1fr 90px 50px", gap: "2px 8px", marginBottom: "3px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
             <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: MC[m].color, flexShrink: 0, display: "inline-block" }} />
-            <span style={{ color: "#555" }}>{MC[m].label}</span>
+            <span style={{ color: "#555" }}>{metricLabels[m]}</span>
           </div>
           <div style={{ textAlign: "right", fontWeight: 600 }}>
             {curr}
@@ -312,13 +280,11 @@ function MultiMetricChart({ data, activeMetrics }: { data: Pt[]; activeMetrics: 
           ))}
         </defs>
         <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#aaa", strokeWidth: 1, strokeDasharray: "3 2" }} />
-        {/* Comparison dashed lines first (behind) */}
         {metrics.map(({ m, cKey }) => activeMetrics.has(m) && (
           <Area key={`c-${m}`} type="monotone" dataKey={cKey}
             stroke={MC[m].color} strokeWidth={1} strokeDasharray="4 3"
             fill="none" dot={false} isAnimationActive={false} legendType="none" />
         ))}
-        {/* Main solid lines */}
         {metrics.map(({ m, nKey }) => activeMetrics.has(m) && (
           <Area key={m} type="monotone" dataKey={nKey}
             stroke={MC[m].color} strokeWidth={1.5}
@@ -370,6 +336,7 @@ const tbBtn = (active = false): React.CSSProperties => ({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function PortfolioPage() {
+  const { t } = useLanguage();
   const [sites, setSites]       = useState<any[]>([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState("");
@@ -404,19 +371,72 @@ export default function PortfolioPage() {
   const toggleFav    = (id: string) => setFavorites(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleHide   = (id: string) => setHidden(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const periodGroups = buildPeriodGroups();
+  // ─── Period groups (uses t() for labels) ──────────────────────────────────
+  const fmt    = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const fmtDay = (d: Date) => d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+  const today     = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const ago   = (n: number) => { const d = new Date(yesterday); d.setDate(yesterday.getDate() - n + 1); return d; };
+  const mAgo  = (n: number) => { const d = new Date(yesterday); d.setMonth(d.getMonth() - n); return d; };
+  const yAgo  = (n: number) => { const d = new Date(yesterday); d.setFullYear(d.getFullYear() - n); return d; };
+  const r     = (a: Date, b: Date) => `${fmt(a)} – ${fmt(b)}`;
+
+  const periodGroups = [
+    [
+      { label: fmtDay(yesterday), value: "yesterday", desc: "" },
+      { label: t("period7d"),   value: "7d",  desc: r(ago(7),  yesterday) },
+      { label: t("period14d"),  value: "14d", desc: r(ago(14), yesterday) },
+      { label: t("period28d"),  value: "28d", desc: r(ago(28), yesterday) },
+    ],
+    [
+      { label: t("lastWeek"),    value: "last_week",    desc: "" },
+      { label: t("thisMonth"),   value: "this_month",   desc: "" },
+      { label: t("lastMonth"),   value: "last_month",   desc: "" },
+    ],
+    [
+      { label: t("thisQuarter"), value: "this_quarter", desc: "" },
+      { label: t("lastQuarter"), value: "last_quarter", desc: "" },
+      { label: t("yearToDate"),  value: "ytd",          desc: "" },
+    ],
+    [
+      { label: t("period3m"),  value: "3m",  desc: r(mAgo(3),  yesterday) },
+      { label: t("period6m"),  value: "6m",  desc: r(mAgo(6),  yesterday) },
+      { label: t("period8m"),  value: "8m",  desc: r(mAgo(8),  yesterday) },
+      { label: t("period12m"), value: "12m", desc: r(mAgo(12), yesterday) },
+      { label: t("period16m"), value: "16m", desc: r(mAgo(16), yesterday) },
+    ],
+    [
+      { label: t("period2y"), value: "2y",     desc: r(yAgo(2), yesterday) },
+      { label: t("period3y"), value: "3y",     desc: r(yAgo(3), yesterday) },
+      { label: t("custom"),   value: "custom", desc: "" },
+    ],
+  ];
+
+  const getPeriodLabel = (v: string) => {
+    for (const g of periodGroups) for (const p of g) if (p.value === v) return p.label;
+    return v;
+  };
+
+  const metricLabels: Record<Metric, string> = {
+    clicks:      t("clicks"),
+    impressions: t("impressions"),
+    ctr:         "CTR",
+    position:    t("avgPosition"),
+  };
 
   // Sort dropdown
   const SortDd = (
-    <Dropdown trigger={<button style={tbBtn()}><ArrowUpDown size={13} /> Sort</button>}>
+    <Dropdown trigger={<button style={tbBtn()}><ArrowUpDown size={13} /> {t("sort")}</button>}>
       {(["az","total","growth","growth_pct"] as SortBy[]).map(v => {
-        const lbl: Record<SortBy,string> = { az:"A to Z", total:"Total", growth:"Growth", growth_pct:"Growth %" };
+        const lbl: Record<SortBy,string> = {
+          az: t("sortAZ"), total: t("sortTotal"), growth: t("sortGrowth"), growth_pct: t("sortGrowthPct"),
+        };
         return <button key={v} style={mi(sortBy===v)} onClick={() => setSortBy(v)}>{lbl[v]}{sortBy===v && <Check size={12} style={{marginLeft:"auto"}} />}</button>;
       })}
-      {md}{ms("Metric")}
+      {md}{ms(t("metric"))}
       {(["clicks","impressions","ctr","position"] as Metric[]).map(m => (
         <button key={m} style={mi(activeMetrics.has(m))} onClick={() => toggleMetric(m)}>
-          <span style={{color:MC[m].color}}>●</span> {MC[m].label}
+          <span style={{color:MC[m].color}}>●</span> {metricLabels[m]}
           {activeMetrics.has(m) && <Check size={12} style={{marginLeft:"auto"}} />}
         </button>
       ))}
@@ -425,20 +445,27 @@ export default function PortfolioPage() {
 
   // Filter dropdown
   const FilterDd = (
-    <Dropdown trigger={<button style={tbBtn()}><SlidersHorizontal size={13} /> Filter</button>}>
-      {[{l:"Query",i:<Search size={13}/>},{l:"Page",i:<FileText size={13}/>},{l:"Country",i:<Globe size={13}/>},{l:"Device",i:<Monitor size={13}/>}]
-        .map(({l,i}) => <button key={l} style={mi()}>{i} {l}</button>)}
-      {md}{ms("Branded Queries")}
+    <Dropdown trigger={<button style={tbBtn()}><SlidersHorizontal size={13} /> {t("filter")}</button>}>
+      {[
+        {l: t("filterQuery"),   i: <Search size={13}/>},
+        {l: t("filterPage"),    i: <FileText size={13}/>},
+        {l: t("filterCountry"), i: <Globe size={13}/>},
+        {l: t("filterDevice"),  i: <Monitor size={13}/>},
+      ].map(({l,i}) => <button key={l} style={mi()}>{i} {l}</button>)}
+      {md}{ms(t("brandedQueries"))}
       <div style={{padding:"6px 14px 10px",display:"flex",gap:"6px"}}>
-        {(["all","branded","nonbranded"] as BrandedFilter[]).map(v => (
-          <button key={v} onClick={() => setBranded(v)} style={{padding:"4px 10px",borderRadius:"20px",fontSize:"12px",fontWeight:500,cursor:"pointer",border:`1px solid ${branded===v?"#3B82F6":"var(--color-border)"}`,background:branded===v?"rgba(59,130,246,0.1)":"transparent",color:branded===v?"#3B82F6":"var(--color-text-secondary)"}}>
-            {v==="all"?"All":v==="branded"?"B":"🚫B"}
-          </button>
-        ))}
+        {(["all","branded","nonbranded"] as BrandedFilter[]).map(v => {
+          const lbl = v === "all" ? t("all") : v === "branded" ? t("branded") : `🚫${t("branded")}`;
+          return (
+            <button key={v} onClick={() => setBranded(v)} style={{padding:"4px 10px",borderRadius:"20px",fontSize:"12px",fontWeight:500,cursor:"pointer",border:`1px solid ${branded===v?"#3B82F6":"var(--color-border)"}`,background:branded===v?"rgba(59,130,246,0.1)":"transparent",color:branded===v?"#3B82F6":"var(--color-text-secondary)"}}>
+              {lbl}
+            </button>
+          );
+        })}
       </div>
-      {md}{ms("Preset Filters")}
-      <button style={mi()}>People Also Ask</button>
-      <button style={mi()}>Long Tail Keywords</button>
+      {md}{ms(t("presetFilters"))}
+      <button style={mi()}>{t("peopleAlsoAsk")}</button>
+      <button style={mi()}>{t("longTailKeywords")}</button>
     </Dropdown>
   );
 
@@ -448,12 +475,22 @@ export default function PortfolioPage() {
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",minWidth:"460px"}}>
         {/* Left: comparison */}
         <div style={{borderRight:"1px solid var(--color-border)"}}>
-          {ms("Comparison Period")}
-          {([{l:"Disabled",v:"disabled"},{l:"Previous Period",v:"previous"},{l:"Year Over Year",v:"yoy"},{l:"Previous Month",v:"prev_month"},{l:"Custom",v:"custom"}] as {l:string;v:Comparison}[]).map(({l,v}) => (
+          {ms(t("comparisonPeriod"))}
+          {([
+            {l: t("compDisabled"),   v:"disabled"},
+            {l: t("compPrevious"),   v:"previous"},
+            {l: t("compYoy"),        v:"yoy"},
+            {l: t("compPrevMonth"),  v:"prev_month"},
+            {l: t("custom"),         v:"custom"},
+          ] as {l:string;v:Comparison}[]).map(({l,v}) => (
             <button key={v} style={{...mi(comparison===v),fontWeight:comparison===v?600:400,color:comparison===v?"#fff":"var(--color-text-secondary)"}} onClick={()=>setComparison(v)}>{l}</button>
           ))}
-          {md}{ms("Comparison Settings")}
-          {([{l:"Previous Trend Line",val:prevTrend,set:setPrevTrend},{l:"Match Weekdays",val:matchWd,set:setMatchWd},{l:"Show change %",val:showPct,set:setShowPct}]).map(({l,val,set}) => (
+          {md}{ms(t("comparisonSettings"))}
+          {([
+            {l: t("prevTrendLine"), val:prevTrend, set:setPrevTrend},
+            {l: t("matchWeekdays"), val:matchWd,   set:setMatchWd},
+            {l: t("showChangePct"), val:showPct,   set:setShowPct},
+          ]).map(({l,val,set}) => (
             <button key={l} style={mi()} onClick={()=>set(!val)}>
               <div style={{width:"16px",height:"16px",borderRadius:"4px",flexShrink:0,border:`2px solid ${val?"#3B82F6":"var(--color-border)"}`,background:val?"#3B82F6":"transparent",display:"flex",alignItems:"center",justifyContent:"center"}}>
                 {val && <Check size={10} color="#fff" />}
@@ -461,17 +498,27 @@ export default function PortfolioPage() {
               {l}
             </button>
           ))}
-          {md}{ms("Search Type")}
-          {([{l:"Web",v:"web",i:<Globe size={13}/>},{l:"Discover",v:"discover",i:<Compass size={13}/>},{l:"News",v:"news",i:<Newspaper size={13}/>},{l:"Image",v:"image",i:<Image size={13}/>},{l:"Video",v:"video",i:<Video size={13}/>}] as {l:string;v:SearchType;i:React.ReactNode}[]).map(({l,v,i}) => (
+          {md}{ms(t("searchType"))}
+          {([
+            {l: t("searchTypeWeb"),      v:"web",      i:<Globe size={13}/>},
+            {l: t("searchTypeDiscover"), v:"discover", i:<Compass size={13}/>},
+            {l: t("searchTypeNews"),     v:"news",     i:<Newspaper size={13}/>},
+            {l: t("searchTypeImage"),    v:"image",    i:<Image size={13}/>},
+            {l: t("searchTypeVideo"),    v:"video",    i:<Video size={13}/>},
+          ] as {l:string;v:SearchType;i:React.ReactNode}[]).map(({l,v,i}) => (
             <button key={v} style={mi(searchType===v)} onClick={()=>setSearchType(v)}>{i} {l}{searchType===v&&<Check size={12} style={{marginLeft:"auto"}}/>}</button>
           ))}
         </div>
         {/* Right: periods */}
         <div>
           <div style={{display:"flex",borderBottom:"1px solid var(--color-border)",padding:"6px 8px",gap:"4px"}}>
-            {(["day","week","month"] as PeriodView[]).map(v => (
+            {([
+              {v:"day",   l: t("periodDay")},
+              {v:"week",  l: t("periodWeek")},
+              {v:"month", l: t("periodMonth")},
+            ] as {v:PeriodView;l:string}[]).map(({v,l}) => (
               <button key={v} onClick={()=>setPeriodView(v)} style={{flex:1,padding:"5px 0",borderRadius:"6px",fontSize:"13px",fontWeight:periodView===v?600:400,cursor:"pointer",background:periodView===v?"#fff":"transparent",color:periodView===v?"#111":"var(--color-text-secondary)",border:"none",transition:"all 0.15s"}}>
-                {v.charAt(0).toUpperCase()+v.slice(1)}
+                {l}
               </button>
             ))}
           </div>
@@ -525,7 +572,6 @@ export default function PortfolioPage() {
             {(["clicks","impressions","ctr","position"] as Metric[]).map(m => {
               if (!activeMetrics.has(m)) return null;
               const {value,change} = sum[m];
-              // For position: going UP (positive change) is actually BAD
               const good = m==="position" ? change<=0 : change>=0;
               return (
                 <div key={m} style={{display:"flex",alignItems:"center",gap:"4px",fontSize:"12px",whiteSpace:"nowrap"}}>
@@ -547,26 +593,22 @@ export default function PortfolioPage() {
 
         {/* Footer: 4 action icons */}
         <div style={{display:"flex",justifyContent:"flex-end",gap:"14px",paddingTop:"2px"}} onClick={e=>e.stopPropagation()}>
-          {/* Export */}
-          <button title="Advanced Export" onClick={()=>setExportSite(domain)}
+          <button title={t("advancedExport")} onClick={()=>setExportSite(domain)}
             style={{color:"var(--color-text-secondary)",opacity:0.5,transition:"all 0.15s",lineHeight:1}}
             onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>(e.currentTarget.style.opacity="0.5")}>
             <Download size={13}/>
           </button>
-          {/* Tags */}
-          <button title="Tags"
+          <button title={t("tags")}
             style={{color:"var(--color-text-secondary)",opacity:0.5,transition:"all 0.15s",lineHeight:1}}
             onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>(e.currentTarget.style.opacity="0.5")}>
             <Tag size={13}/>
           </button>
-          {/* Hide site */}
-          <button title={hidden.has(site.id)?"Unhide site":"Hide site"} onClick={()=>toggleHide(site.id)}
+          <button title={hidden.has(site.id) ? t("unhideSite") : t("hideSite")} onClick={()=>toggleHide(site.id)}
             style={{color:hidden.has(site.id)?"#3B82F6":"var(--color-text-secondary)",opacity:hidden.has(site.id)?1:0.5,transition:"all 0.15s",lineHeight:1}}
             onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>{if(!hidden.has(site.id))e.currentTarget.style.opacity="0.5";}}>
             <EyeOff size={13}/>
           </button>
-          {/* Favorite */}
-          <button title={isFav?"Remove from favorites":"Add to favorites"} onClick={()=>toggleFav(site.id)}
+          <button title={isFav ? t("removeFromFavorites") : t("addToFavorites")} onClick={()=>toggleFav(site.id)}
             style={{color:isFav?"var(--color-warning)":"var(--color-text-secondary)",opacity:isFav?1:0.5,transition:"all 0.15s",lineHeight:1}}
             onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>{if(!isFav)e.currentTarget.style.opacity="0.5";}}>
             <Star size={13} fill={isFav?"var(--color-warning)":"none"}/>
@@ -582,7 +624,7 @@ export default function PortfolioPage() {
       <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
         <div style={{position:"relative",flex:"1 1 180px"}}>
           <Search size={14} style={{position:"absolute",left:"10px",top:"50%",transform:"translateY(-50%)",color:"var(--color-text-secondary)"}}/>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search sites…"
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder={t("searchSites")}
             style={{width:"100%",padding:"7px 12px 7px 32px",borderRadius:"8px",border:"1px solid var(--color-border)",background:"var(--color-card)",color:"#fff",fontSize:"13px",outline:"none"}}/>
         </div>
         {SortDd}
@@ -591,14 +633,14 @@ export default function PortfolioPage() {
         {/* Metric icons */}
         <div style={{display:"flex",gap:"4px"}}>
           {([
-            {m:"clicks",      icon:<Sparkles size={14}/>, color:"#3B82F6", bg:"rgba(59,130,246,0.12)", title:"Clicks"},
-            {m:"impressions", icon:<Eye size={14}/>,      color:"#8B5CF6", bg:"rgba(139,92,246,0.12)", title:"Impressions"},
-            {m:"ctr",         icon:<Percent size={14}/>,  color:"#10B981", bg:"rgba(16,185,129,0.12)", title:"CTR"},
-            {m:"position",    icon:<MoveUp size={14}/>,   color:"#F59E0B", bg:"rgba(245,158,11,0.12)", title:"Avg Position"},
-          ] as {m:Metric;icon:React.ReactNode;color:string;bg:string;title:string}[]).map(({m,icon,color,bg,title}) => {
+            {m:"clicks",      icon:<Sparkles size={14}/>, color:"#3B82F6", bg:"rgba(59,130,246,0.12)"},
+            {m:"impressions", icon:<Eye size={14}/>,      color:"#8B5CF6", bg:"rgba(139,92,246,0.12)"},
+            {m:"ctr",         icon:<Percent size={14}/>,  color:"#10B981", bg:"rgba(16,185,129,0.12)"},
+            {m:"position",    icon:<MoveUp size={14}/>,   color:"#F59E0B", bg:"rgba(245,158,11,0.12)"},
+          ] as {m:Metric;icon:React.ReactNode;color:string;bg:string}[]).map(({m,icon,color,bg}) => {
             const active = activeMetrics.has(m);
             return (
-              <button key={m} title={title} onClick={()=>toggleMetric(m)} style={{display:"flex",alignItems:"center",justifyContent:"center",width:"34px",height:"34px",borderRadius:"8px",cursor:"pointer",border:`1px solid ${active?color:"var(--color-border)"}`,background:active?bg:"var(--color-card)",color:active?color:"var(--color-text-secondary)",transition:"all 0.15s"}}>
+              <button key={m} title={metricLabels[m]} onClick={()=>toggleMetric(m)} style={{display:"flex",alignItems:"center",justifyContent:"center",width:"34px",height:"34px",borderRadius:"8px",cursor:"pointer",border:`1px solid ${active?color:"var(--color-border)"}`,background:active?bg:"var(--color-card)",color:active?color:"var(--color-text-secondary)",transition:"all 0.15s"}}>
                 {icon}
               </button>
             );
@@ -610,23 +652,23 @@ export default function PortfolioPage() {
 
       {/* Body */}
       {loading ? (
-        <div style={{textAlign:"center",color:"var(--color-text-secondary)",padding:"80px 0",fontSize:"14px"}}>Loading your sites…</div>
+        <div style={{textAlign:"center",color:"var(--color-text-secondary)",padding:"80px 0",fontSize:"14px"}}>{t("loadingSites")}</div>
       ) : sites.length===0 ? (
         <div style={{textAlign:"center",color:"var(--color-text-secondary)",padding:"80px 0",fontSize:"14px"}}>
-          No sites yet. <a href="/settings" style={{color:"var(--color-accent-purple)"}}>Connect your Google account →</a>
+          {t("noSitesYet")} <a href="/settings" style={{color:"var(--color-accent-purple)"}}>{t("connectGoogleAccount")}</a>
         </div>
       ) : (
         <>
           {favSites.length>0 && (
             <section>
-              <div style={{fontSize:"11px",color:"var(--color-text-secondary)",fontWeight:600,marginBottom:"12px",textTransform:"uppercase",letterSpacing:"0.07em"}}>⭐ Favorites ({favSites.length})</div>
+              <div style={{fontSize:"11px",color:"var(--color-text-secondary)",fontWeight:600,marginBottom:"12px",textTransform:"uppercase",letterSpacing:"0.07em"}}>⭐ {t("favoritesSection")} ({favSites.length})</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:"12px"}}>
                 {favSites.map((s,i)=><SiteCard key={s.id||i} site={s}/>)}
               </div>
             </section>
           )}
           <section>
-            <div style={{fontSize:"11px",color:"var(--color-text-secondary)",fontWeight:600,marginBottom:"12px",textTransform:"uppercase",letterSpacing:"0.07em"}}>All Sites ({restSites.length})</div>
+            <div style={{fontSize:"11px",color:"var(--color-text-secondary)",fontWeight:600,marginBottom:"12px",textTransform:"uppercase",letterSpacing:"0.07em"}}>{t("allSitesSection")} ({restSites.length})</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:"12px"}}>
               {restSites.map((s,i)=><SiteCard key={s.id||i} site={s}/>)}
             </div>
@@ -634,7 +676,7 @@ export default function PortfolioPage() {
 
           {hiddenSites.length>0 && (
             <section>
-              <div style={{fontSize:"11px",color:"var(--color-text-secondary)",fontWeight:600,marginBottom:"12px",textTransform:"uppercase",letterSpacing:"0.07em",opacity:0.6}}>🙈 Hidden ({hiddenSites.length})</div>
+              <div style={{fontSize:"11px",color:"var(--color-text-secondary)",fontWeight:600,marginBottom:"12px",textTransform:"uppercase",letterSpacing:"0.07em",opacity:0.6}}>🙈 {t("hiddenSection")} ({hiddenSites.length})</div>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))",gap:"12px",opacity:0.5}}>
                 {hiddenSites.map((s,i)=><SiteCard key={s.id||i} site={s}/>)}
               </div>

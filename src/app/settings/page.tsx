@@ -8,6 +8,7 @@ import {
   ChevronDown, Crown, Zap, Star,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 type NavItem = "accounts" | "teams" | "api" | "members" | "preferences" | "supersites";
 
@@ -63,12 +64,13 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
   user: any; accounts: ConnectedAccount[]; loadingAccounts: boolean;
   removing: string | null; onAdd: () => void; onRemove: (id: string) => void;
 }) {
+  const { t } = useLanguage();
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", alignItems: "flex-start" }}>
       <SectionCard>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "20px" }}>
           <GoogleIcon size={17} />
-          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>Your Account</h2>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>{t("yourAccount")}</h2>
         </div>
         {user && (
           <>
@@ -80,13 +82,17 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>Search Console: <span style={{ color: "#10B981" }}>Connected</span></span>
-              <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>Google Analytics 4: <span style={{ color: "#F59E0B" }}>Not connected</span></span>
+              <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+                {t("scStatus")}: <span style={{ color: "#10B981" }}>{t("scConnected")}</span>
+              </span>
+              <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+                {t("ga4Status")}: <span style={{ color: "#F59E0B" }}>{t("scNotConnected")}</span>
+              </span>
             </div>
             <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: 1.7 }}>
-              You can revoke SEO Gets access to your Google Search Console account at any time. Visit{" "}
+              {t("revokeDesc")}{" "}
               <a href="https://myaccount.google.com/" target="_blank" rel="noreferrer" style={{ color: "var(--color-accent-blue)" }}>https://myaccount.google.com/</a>
-              {" "}and follow the steps to disconnect SEO Gets.
+              {" "}{t("revokeDesc2")}
             </p>
           </>
         )}
@@ -96,23 +102,25 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <GoogleIcon size={15} />
-            <h2 style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>Linked Accounts</h2>
+            <h2 style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>{t("linkedAccounts")}</h2>
             {!loadingAccounts && (
               <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)", background: "rgba(255,255,255,0.06)", borderRadius: "20px", padding: "2px 8px" }}>
-                {accounts.length} account{accounts.length !== 1 ? "s" : ""}
+                {accounts.length} {accounts.length !== 1 ? t("accounts") : t("account")}
               </span>
             )}
           </div>
           <button onClick={onAdd} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "7px", fontSize: "12px", fontWeight: 600, background: "rgba(59,130,246,0.12)", color: "#3B82F6", border: "1px solid rgba(59,130,246,0.25)", cursor: "pointer" }}
             onMouseOver={e => e.currentTarget.style.background = "rgba(59,130,246,0.2)"} onMouseOut={e => e.currentTarget.style.background = "rgba(59,130,246,0.12)"}
-          ><Plus size={13} /> Account</button>
+          ><Plus size={13} /> {t("addAccount")}</button>
         </div>
         {loadingAccounts ? (
-          <div style={{ color: "var(--color-text-secondary)", fontSize: "13px", padding: "12px 0" }}>Loading…</div>
+          <div style={{ color: "var(--color-text-secondary)", fontSize: "13px", padding: "12px 0" }}>{t("loadingAccounts")}</div>
         ) : accounts.length === 0 ? (
           <div style={{ textAlign: "center", padding: "28px 0" }}>
             <Globe size={28} style={{ color: "var(--color-text-secondary)", marginBottom: "10px", opacity: 0.4 }} />
-            <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>No accounts linked yet.<br />Click "+ Account" to connect Google.</p>
+            <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+              {t("noAccountsLinked")}<br />{t("noAccountsLinkedHint")}
+            </p>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
@@ -148,14 +156,15 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
 
 // ─── Section: My Teams ────────────────────────────────────────────────────────
 function TeamsSection({ user }: { user: any }) {
+  const { t } = useLanguage();
   const teamName = user?.name ? `${user.name.split(" ")[0]}'s Team` : "My Team";
   return (
     <SectionCard>
-      <SectionTitle icon={<Users size={17} />} title="My Teams" />
+      <SectionTitle icon={<Users size={17} />} title={t("myTeams")} />
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr>
-            {["Team", "Shares your sites with team?", "Settings / Billing"].map(h => (
+            {[t("teamColTeam"), t("teamColShares"), t("teamColBilling")].map(h => (
               <th key={h} style={{ textAlign: "left", fontSize: "12px", color: "var(--color-text-secondary)", fontWeight: 500, paddingBottom: "14px", borderBottom: "1px solid var(--color-border)" }}>{h}</th>
             ))}
           </tr>
@@ -169,19 +178,19 @@ function TeamsSection({ user }: { user: any }) {
                   <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)" }}>{teamName}</div>
                   <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
                     <Crown size={11} color="#F59E0B" />
-                    <span style={{ fontSize: "11px", color: "#F59E0B", fontWeight: 600 }}>Owner</span>
+                    <span style={{ fontSize: "11px", color: "#F59E0B", fontWeight: 600 }}>{t("owner")}</span>
                   </div>
                 </div>
               </div>
             </td>
             <td style={{ padding: "16px 0 0" }}>
               <button style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "transparent", color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>
-                <CheckCircle size={14} color="#10B981" /> Yes <ChevronDown size={13} color="var(--color-text-secondary)" />
+                <CheckCircle size={14} color="#10B981" /> {t("yes")} <ChevronDown size={13} color="var(--color-text-secondary)" />
               </button>
             </td>
             <td style={{ padding: "16px 0 0" }}>
               <button style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "13px", color: "var(--color-accent-blue)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>
-                View <span style={{ fontSize: "11px" }}>↗</span>
+                {t("view")} <span style={{ fontSize: "11px" }}>↗</span>
               </button>
             </td>
           </tr>
@@ -193,6 +202,7 @@ function TeamsSection({ user }: { user: any }) {
 
 // ─── Section: API & MCP Keys ──────────────────────────────────────────────────
 function ApiSection() {
+  const { t } = useLanguage();
   const [keyName, setKeyName] = useState("");
   const [keys, setKeys] = useState<{ id: string; name: string; key: string; created: string }[]>([]);
   const [os, setOs] = useState<"mac" | "win">("mac");
@@ -220,14 +230,14 @@ function ApiSection() {
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Beta banner */}
       <div style={{ padding: "12px 16px", borderRadius: "8px", border: "1px solid rgba(245,158,11,0.4)", background: "rgba(245,158,11,0.06)", fontSize: "13px", color: "#FCD34D" }}>
-        <strong>Beta:</strong> Our MCP server is still in beta. If you have any feedback or run into any issues, please let us know so we can continue improving it!
+        <strong>{t("mcpBeta")}</strong> {t("mcpBetaText")}
       </div>
 
       <SectionCard>
         <SectionTitle
           icon={<Zap size={17} />}
-          title="MCP Keys"
-          sub="Allow MCP (Model Context Protocol) clients to use your SEO Gets data"
+          title={t("mcpKeys")}
+          sub={t("mcpKeysDesc")}
         />
 
         {/* Create key input */}
@@ -235,12 +245,12 @@ function ApiSection() {
           <input
             value={keyName} onChange={e => setKeyName(e.target.value)}
             onKeyDown={e => e.key === "Enter" && createKey()}
-            placeholder="Name"
+            placeholder={t("mcpKeyName")}
             style={{ flex: 1, padding: "10px 14px", background: "transparent", border: "none", color: "#fff", fontSize: "13px", outline: "none" }}
           />
           <button onClick={createKey} style={{ padding: "10px 18px", background: "transparent", borderLeft: "1px solid var(--color-border)", color: "var(--color-accent-blue)", fontSize: "13px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
             onMouseOver={e => e.currentTarget.style.background = "rgba(59,130,246,0.08)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}>
-            Create Key
+            {t("createKey")}
           </button>
         </div>
 
@@ -264,20 +274,20 @@ function ApiSection() {
 
         {/* MCP setup guide */}
         <div style={{ border: "1px solid var(--color-border)", borderRadius: "10px", padding: "20px", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>How to configure MCP in Claude Desktop</h3>
+          <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>{t("mcpSetupTitle")}</h3>
 
           {/* Step 1 */}
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "6px" }}>Step 1: Install Node.js</div>
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "6px" }}>{t("mcpStep1Title")}</div>
             <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
-              Node.js is required to run the MCP Server. If you don't have it yet, download and install it from{" "}
+              {t("mcpStep1Desc")}{" "}
               <a href="https://nodejs.org" target="_blank" rel="noreferrer" style={{ color: "var(--color-accent-blue)" }}>nodejs.org</a>.
             </p>
           </div>
 
           {/* Step 2 */}
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "12px" }}>Step 2: Run the Setup Script</div>
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "12px" }}>{t("mcpStep2Title")}</div>
             {/* OS tabs */}
             <div style={{ display: "flex", gap: "2px", background: "rgba(255,255,255,0.06)", borderRadius: "8px", padding: "3px", width: "fit-content", marginBottom: "14px" }}>
               {([["mac", "🍎  macOS / Linux"], ["win", "⊞  Windows"]] as [string, string][]).map(([id, label]) => (
@@ -287,7 +297,10 @@ function ApiSection() {
               ))}
             </div>
             <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", marginBottom: "8px", lineHeight: 1.6 }}>
-              {keys.length === 0 ? "Create an MCP key above first — the command will update automatically with your key." : <>Open the <strong style={{ color: "#fff" }}>Terminal</strong> app {os === "mac" && <>(press <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "1px 5px", borderRadius: "4px", fontSize: "11px" }}>⌘ Space</kbd> and type <em>Terminal</em>)</>}, then paste and run the command below.</>}
+              {keys.length === 0
+                ? t("mcpNoKeyYet")
+                : <>{t("mcpOpenTerminal")} <strong style={{ color: "#fff" }}>{t("mcpTerminal")}</strong> {t("mcpTerminalApp")} {os === "mac" && <>(press <kbd style={{ background: "rgba(255,255,255,0.1)", padding: "1px 5px", borderRadius: "4px", fontSize: "11px" }}>⌘ Space</kbd> {t("mcpTerminalPress")} <em>{t("mcpTerminal")}</em>)</>}, {t("mcpTerminalPaste")}</>
+              }
             </p>
             {/* Command box */}
             <div style={{ display: "flex", alignItems: "center", gap: "0", background: "rgba(255,255,255,0.04)", border: "1px solid var(--color-border)", borderRadius: "8px", overflow: "hidden" }}>
@@ -302,12 +315,12 @@ function ApiSection() {
 
           {/* Step 3 */}
           <div>
-            <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "6px" }}>Step 3: Ask your first question</div>
+            <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff", marginBottom: "6px" }}>{t("mcpStep3Title")}</div>
             <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: "8px" }}>
-              Restart Claude Desktop, then check that <strong style={{ color: "#fff" }}>SEOGets</strong> appears in the list of Connectors. Try asking: <em style={{ color: "#fff" }}>"What are the top 3 countries on mysite.com?"</em>
+              {t("mcpStep3Desc")} <em style={{ color: "#fff" }}>{t("mcpStep3Example")}</em>
             </p>
             <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
-              💡 <strong>Tip:</strong> Always mention your site's domain in the first prompt so Claude knows which site to query.
+              {t("mcpTip")}
             </p>
           </div>
         </div>
@@ -318,26 +331,27 @@ function ApiSection() {
 
 // ─── Section: Team Members ────────────────────────────────────────────────────
 function MembersSection({ user }: { user: any }) {
+  const { t } = useLanguage();
   return (
     <SectionCard>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>Members</h2>
-          <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", background: "rgba(255,255,255,0.06)", borderRadius: "20px", padding: "2px 8px" }}>1 user</span>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>{t("members")}</h2>
+          <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", background: "rgba(255,255,255,0.06)", borderRadius: "20px", padding: "2px 8px" }}>{t("membersCount")}</span>
         </div>
         <button style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 16px", borderRadius: "8px", background: "rgba(59,130,246,0.12)", color: "#3B82F6", border: "1px solid rgba(59,130,246,0.25)", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>
-          <Plus size={14} /> Invite
+          <Plus size={14} /> {t("invite")}
         </button>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: "12px", padding: "12px 0", borderTop: "1px solid var(--color-border)" }}>
         <UserAvatar email={user?.email ?? "a"} picture={user?.image} size={36} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff" }}>{user?.name ?? "Account"}</div>
+          <div style={{ fontSize: "14px", fontWeight: 600, color: "#fff" }}>{user?.name ?? t("yourAccount")}</div>
           <div style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{user?.email}</div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "20px", background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.2)" }}>
           <Crown size={12} color="#F59E0B" />
-          <span style={{ fontSize: "12px", color: "#F59E0B", fontWeight: 600 }}>Owner</span>
+          <span style={{ fontSize: "12px", color: "#F59E0B", fontWeight: 600 }}>{t("owner")}</span>
         </div>
       </div>
     </SectionCard>
@@ -346,6 +360,7 @@ function MembersSection({ user }: { user: any }) {
 
 // ─── Section: Preferences ─────────────────────────────────────────────────────
 function PreferencesSection({ user }: { user: any }) {
+  const { t } = useLanguage();
   const teamName = user?.name ? `${user.name.split(" ")[0]}'s Team` : "My Team";
   const [shareWithTeam, setShareWithTeam] = useState(true);
   const [useAI, setUseAI] = useState(true);
@@ -355,16 +370,16 @@ function PreferencesSection({ user }: { user: any }) {
       {/* Sharing */}
       <SectionCard>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>Sharing Sites with Team</h2>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>{t("sharingTitle")}</h2>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
           <div>
             <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>{teamName}</div>
-            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>Share all your GSC sites with your team</div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>{t("sharingDesc")}</div>
           </div>
           <button onClick={() => setShareWithTeam(s => !s)} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "transparent", color: "#fff", fontSize: "13px", fontWeight: 500, cursor: "pointer" }}>
             {shareWithTeam ? <CheckCircle size={14} color="#10B981" /> : <X size={14} color="#6b7280" />}
-            {shareWithTeam ? "Yes" : "No"}
+            {shareWithTeam ? t("yes") : t("no")}
             <ChevronDown size={13} color="var(--color-text-secondary)" />
           </button>
         </div>
@@ -373,22 +388,25 @@ function PreferencesSection({ user }: { user: any }) {
       {/* Team Preferences */}
       <SectionCard>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>Team Preferences</h2>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>{t("teamPreferences")}</h2>
           <button style={{ fontSize: "13px", color: "var(--color-accent-blue)", background: "none", border: "none", cursor: "pointer", fontWeight: 500, display: "flex", alignItems: "center", gap: "4px" }}>
-            <Edit2 size={13} /> Edit
+            <Edit2 size={13} /> {t("edit")}
           </button>
         </div>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
           <div>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>Use AI in SEO Experience?</div>
-            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>Enable AI-powered insights and suggestions</div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff" }}>{t("useAI")}</div>
+            <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px" }}>{t("useAIDesc")}</div>
           </div>
           <div style={{ display: "flex", gap: "6px" }}>
-            {["Yes", "No"].map(opt => (
-              <button key={opt} onClick={() => setUseAI(opt === "Yes")} style={{ padding: "6px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", background: (useAI ? "Yes" : "No") === opt ? "rgba(59,130,246,0.15)" : "transparent", color: (useAI ? "Yes" : "No") === opt ? "#3B82F6" : "var(--color-text-secondary)", border: `1px solid ${(useAI ? "Yes" : "No") === opt ? "rgba(59,130,246,0.3)" : "var(--color-border)"}`, transition: "all 0.15s" }}>
-                {opt}
-              </button>
-            ))}
+            {[t("yes"), t("no")].map((opt, idx) => {
+              const isActive = idx === 0 ? useAI : !useAI;
+              return (
+                <button key={opt} onClick={() => setUseAI(idx === 0)} style={{ padding: "6px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: "pointer", background: isActive ? "rgba(59,130,246,0.15)" : "transparent", color: isActive ? "#3B82F6" : "var(--color-text-secondary)", border: `1px solid ${isActive ? "rgba(59,130,246,0.3)" : "var(--color-border)"}`, transition: "all 0.15s" }}>
+                  {opt}
+                </button>
+              );
+            })}
           </div>
         </div>
       </SectionCard>
@@ -400,6 +418,7 @@ function PreferencesSection({ user }: { user: any }) {
 interface GscSite { id: string; url: string; siteId: string; }
 
 function SuperSitesSection() {
+  const { t } = useLanguage();
   const [superSites, setSuperSites] = useState<string[]>([]);
   const [allSites, setAllSites] = useState<GscSite[]>([]);
   const [loadingSites, setLoadingSites] = useState(true);
@@ -438,20 +457,26 @@ function SuperSitesSection() {
 
   const remove = (url: string) => setSuperSites(prev => prev.filter(s => s !== url));
 
+  const searchPlaceholder = loadingSites
+    ? t("loadingGscProps")
+    : allSites.length > 0
+      ? t("searchGscProps").replace("{n}", String(allSites.length))
+      : t("enterDomainToAdd");
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       <SectionCard>
         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
           <Star size={17} color="#F59E0B" />
-          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>Super Sites</h2>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("superSites")}</h2>
           {superSites.length > 0 && (
             <span style={{ fontSize: "11px", color: "#F59E0B", background: "rgba(245,158,11,0.1)", borderRadius: "20px", padding: "2px 8px", fontWeight: 600 }}>
-              {superSites.length} upgraded
+              {superSites.length} {t("upgraded")}
             </span>
           )}
         </div>
         <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: 1.7, marginBottom: "20px" }}>
-          Store your Google Search Console data for up to 5 years, and unlock advanced features such as Index Reporting and Top Positions filtering.
+          {t("superSitesDesc")}
         </p>
 
         {/* Combined search + picker */}
@@ -479,13 +504,7 @@ function SuperSitesSection() {
                   else addManual();
                 }
               }}
-              placeholder={
-                loadingSites
-                  ? "Loading your GSC properties..."
-                  : allSites.length > 0
-                    ? `Search across ${allSites.length} GSC properties...`
-                    : "Enter a domain to add..."
-              }
+              placeholder={searchPlaceholder}
               disabled={loadingSites}
               style={{
                 flex: 1, padding: "10px 0",
@@ -503,7 +522,7 @@ function SuperSitesSection() {
                   border: "1px solid rgba(245,158,11,0.25)",
                   fontSize: "11px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap",
                 }}
-              >+ Add</button>
+              >{t("addManual")}</button>
             )}
           </div>
 
@@ -537,11 +556,11 @@ function SuperSitesSection() {
                   <span style={{ fontSize: "13px", color: "var(--color-text-primary)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {cleanDomain(site.url)}
                   </span>
-                  <span style={{ fontSize: "11px", color: "#F59E0B", flexShrink: 0 }}>⭐ Upgrade</span>
+                  <span style={{ fontSize: "11px", color: "#F59E0B", flexShrink: 0 }}>{t("upgradeLabel")}</span>
                 </button>
               )) : (
                 <div style={{ padding: "11px 14px", fontSize: "12px", color: "var(--color-text-secondary)" }}>
-                  No GSC match — press Enter or click + Add to add manually
+                  {t("noGscMatch")}
                 </div>
               )}
             </div>
@@ -553,7 +572,7 @@ function SuperSitesSection() {
           <div style={{ padding: "24px", borderRadius: "10px", border: "1px dashed var(--color-border)", textAlign: "center" }}>
             <div style={{ fontSize: "22px", marginBottom: "8px" }}>⭐</div>
             <div style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
-              No Super Sites yet. Search for a property above to get started.
+              {t("noSuperSitesYet")}
             </div>
           </div>
         ) : (
@@ -578,7 +597,7 @@ function SuperSitesSection() {
                     border: "1px solid rgba(239,68,68,0.2)",
                     fontSize: "11px", fontWeight: 600, cursor: "pointer",
                   }}
-                >Remove</button>
+                >{t("remove")}</button>
               </div>
             ))}
           </div>
@@ -590,6 +609,7 @@ function SuperSitesSection() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SettingsPage() {
+  const { t } = useLanguage();
   const router = useRouter();
   const { data: session } = useSession();
   const user = session?.user;
@@ -612,7 +632,7 @@ export default function SettingsPage() {
 
   const handleAdd = () => signIn("google", { callbackUrl: "/settings" });
   const handleRemove = async (id: string) => {
-    if (!confirm("Disconnect this Google account?")) return;
+    if (!confirm(t("disconnectConfirm"))) return;
     setRemoving(id);
     await fetch("/api/gsc/accounts", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ accountId: id }) });
     await fetchAccounts();
@@ -635,9 +655,9 @@ export default function SettingsPage() {
       {/* Page header */}
       <div style={{ padding: "20px 32px 0" }}>
         <button onClick={() => router.push("/")} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", color: "var(--color-accent-blue)", background: "none", border: "none", cursor: "pointer", marginBottom: "8px" }}>
-          <ArrowLeft size={14} /> Back
+          <ArrowLeft size={14} /> {t("back")}
         </button>
-        <h1 style={{ fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.02em" }}>Settings</h1>
+        <h1 style={{ fontSize: "26px", fontWeight: 700, color: "#fff", letterSpacing: "-0.02em" }}>{t("settingsTitle")}</h1>
       </div>
 
       {/* Body */}
@@ -647,16 +667,16 @@ export default function SettingsPage() {
         <div style={{ width: "200px", flexShrink: 0, paddingRight: "24px" }}>
           {/* Account */}
           <div style={{ marginBottom: "28px" }}>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "#fff", marginBottom: "2px" }}>Account</div>
+            <div style={{ fontSize: "12px", fontWeight: 700, color: "#fff", marginBottom: "2px" }}>{t("sidebarAccount")}</div>
             <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "10px" }}>{user?.email}</div>
-            <NavBtn id="accounts" icon={<GoogleIcon size={14} />} label="My Google Accounts" />
-            <NavBtn id="teams" icon={<Users size={14} />} label="My Teams" />
-            <NavBtn id="api" icon={<Key size={14} />} label="API & MCP Keys" />
+            <NavBtn id="accounts" icon={<GoogleIcon size={14} />} label={t("navMyGoogleAccounts")} />
+            <NavBtn id="teams" icon={<Users size={14} />} label={t("myTeams")} />
+            <NavBtn id="api" icon={<Key size={14} />} label={t("navApiMcpKeys")} />
           </div>
 
           {/* Team */}
           <div>
-            <div style={{ fontSize: "12px", fontWeight: 700, color: "#fff", marginBottom: "2px" }}>Team</div>
+            <div style={{ fontSize: "12px", fontWeight: 700, color: "#fff", marginBottom: "2px" }}>{t("sidebarTeam")}</div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "10px" }}>
               {editingTeam ? (
                 <input
@@ -671,9 +691,9 @@ export default function SettingsPage() {
               )}
               <Edit2 size={11} style={{ color: "var(--color-text-secondary)", cursor: "pointer", flexShrink: 0 }} onClick={() => setEditingTeam(true)} />
             </div>
-            <NavBtn id="members" icon={<Users size={14} />} label="Team Members" badge="1" />
-            <NavBtn id="preferences" icon={<Settings size={14} />} label="Preferences" />
-            <NavBtn id="supersites" icon={<Star size={14} />} label="Super Sites" />
+            <NavBtn id="members" icon={<Users size={14} />} label={t("navTeamMembers")} badge="1" />
+            <NavBtn id="preferences" icon={<Settings size={14} />} label={t("navPreferences")} />
+            <NavBtn id="supersites" icon={<Star size={14} />} label={t("navSuperSites")} />
           </div>
         </div>
 
@@ -697,12 +717,12 @@ export default function SettingsPage() {
           </div>
           <button style={{ fontSize: "13px", color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}
             onMouseOver={e => e.currentTarget.style.color = "#fff"} onMouseOut={e => e.currentTarget.style.color = "var(--color-text-secondary)"}>
-            Changelog
+            {t("changelog")}
           </button>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "2px" }}>
-          <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>© 2026 SEO Gets LLC. All rights reserved.</span>
-          <span style={{ fontSize: "10px", color: "var(--color-border)" }}>Version 1.0.0</span>
+          <span style={{ fontSize: "11px", color: "var(--color-text-secondary)" }}>{t("copyright")}</span>
+          <span style={{ fontSize: "10px", color: "var(--color-border)" }}>{t("version")} 1.0.0</span>
         </div>
       </div>
     </div>

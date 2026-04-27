@@ -3,7 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "./prisma";
 
-const isProd = process.env.NODE_ENV === "production";
+const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -11,7 +11,7 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  cookies: isProd ? {
+  cookies: useSecureCookies ? {
     sessionToken: {
       name: "__Secure-next-auth.session-token",
       options: { httpOnly: true, sameSite: "lax", path: "/", secure: true },
