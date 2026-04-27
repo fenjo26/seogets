@@ -125,10 +125,11 @@ function fmtVal(m: Metric, v: number) {
   if (m === "impressions") return fmtK(v);
   return String(v);
 }
-function pctStr(curr: number, prev: number) {
+function pctStr(curr: number, prev: number, invert = false) {
   if (prev === 0) return curr > 0 ? "↑∞%" : "";
   const p = Math.round(((curr - prev) / prev) * 100);
-  return `${p >= 0 ? "↑" : "↓"}${Math.abs(p)}%`;
+  const up = invert ? p < 0 : p >= 0;
+  return `${up ? "↑" : "↓"}${Math.abs(p)}%`;
 }
 
 function getDomain(url: string) {
@@ -265,7 +266,7 @@ function ChartTooltip({ active, payload }: any) {
     { m: "clicks",      curr: String(d.clicks),    prev: String(d.clicksC),     pct: pctStr(d.clicks, d.clicksC) },
     { m: "impressions", curr: fmtK(d.impressions), prev: fmtK(d.impressionsC),  pct: pctStr(d.impressions, d.impressionsC) },
     { m: "ctr",         curr: `${d.ctr}%`,         prev: `${d.ctrC}%`,          pct: pctStr(d.ctr, d.ctrC) },
-    { m: "position",    curr: String(d.position),  prev: String(d.positionC),   pct: pctStr(d.position, d.positionC) },
+    { m: "position",    curr: String(d.position),  prev: String(d.positionC),   pct: pctStr(d.position, d.positionC, true) },
   ];
   return (
     <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#111", minWidth: "210px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
@@ -633,7 +634,8 @@ export default function PortfolioPage() {
             {(["clicks","impressions","ctr","position"] as Metric[]).map(m => {
               if (!activeMetrics.has(m)) return null;
               const {value,change} = sum[m];
-              const good = m==="position" ? change<=0 : change>=0;
+              const good  = m==="position" ? change<=0 : change>=0;
+              const arrow = m==="position" ? (change<0?"↑":"↓") : (change>=0?"↑":"↓");
               return (
                 <div key={m} style={{display:"flex",alignItems:"center",gap:"4px",fontSize:"12px",whiteSpace:"nowrap"}}>
                   <span style={{color:MC[m].color,fontSize:"10px",fontWeight:700}}>
@@ -641,7 +643,7 @@ export default function PortfolioPage() {
                   </span>
                   <span style={{fontWeight:600}}>{fmtVal(m,value)}</span>
                   <span style={{fontSize:"10px",color:good?"#10B981":"#EF4444",fontWeight:500}}>
-                    {change>=0?"↑":"↓"}{Math.abs(change)}%
+                    {arrow}{Math.abs(change)}%
                   </span>
                 </div>
               );
