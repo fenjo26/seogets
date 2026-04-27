@@ -462,15 +462,21 @@ export default function PortfolioPage() {
     position:    t("avgPosition"),
   };
 
+  const sortLabels: Record<SortBy, string> = {
+    "az":         t("sortAZ"),
+    "total":      t("sortTotal"),
+    "growth":     t("sortGrowth"),
+    "growth_pct": t("sortGrowthPct"),
+  };
+
   // Sort dropdown
   const SortDd = (
     <Dropdown trigger={<button style={tbBtn()}><ArrowUpDown size={13} /> {t("sort")}</button>}>
-      {(["az","total","growth","growth_pct"] as SortBy[]).map(v => {
-        const lbl: Record<SortBy,string> = {
-          az: t("sortAZ"), total: t("sortTotal"), growth: t("sortGrowth"), growth_pct: t("sortGrowthPct"),
-        };
-        return <button key={v} style={mi(sortBy===v)} onClick={() => setSortBy(v)}>{lbl[v]}{sortBy===v && <Check size={12} style={{marginLeft:"auto"}} />}</button>;
-      })}
+      {(["az","total","growth","growth_pct"] as SortBy[]).map(v => (
+        <button key={v} style={mi(sortBy===v)} onClick={() => setSortBy(v)}>
+          {sortLabels[v]}{sortBy===v && <Check size={12} style={{marginLeft:"auto"}} />}
+        </button>
+      ))}
       {md}{ms(t("metric"))}
       {(["clicks","impressions","ctr","position"] as Metric[]).map(m => (
         <button key={m} style={mi(activeMetrics.has(m))} onClick={() => toggleMetric(m)}>
