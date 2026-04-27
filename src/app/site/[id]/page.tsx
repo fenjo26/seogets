@@ -2,6 +2,9 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import ContentDecayMap from "@/components/ContentDecayMap";
+import KeywordCannibalization from "@/components/KeywordCannibalization";
+import StrikingDistanceKeywords from "@/components/StrikingDistanceKeywords";
+import CtrBenchmark from "@/components/CtrBenchmark";
 import { useParams, useRouter } from "next/navigation";
 import { usePrivacy } from "@/lib/PrivacyContext";
 import { useLanguage } from "@/lib/i18n/LanguageProvider";
@@ -1066,6 +1069,7 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
 // ─── Optimize Tab ─────────────────────────────────────────────────────────────
 const OPTIMIZE_TOOLS = [
   {
+    id: "cdm",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/>
@@ -1073,10 +1077,11 @@ const OPTIMIZE_TOOLS = [
       </svg>
     ),
     iconBg: "rgba(239,68,68,0.1)",
-    title: "Content Decay Map",
-    desc: "Find content that needs to be updated.",
+    titleKey: "optContentDecay",
+    descKey: "optContentDecayDesc",
   },
   {
+    id: "kc",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
@@ -1084,10 +1089,11 @@ const OPTIMIZE_TOOLS = [
       </svg>
     ),
     iconBg: "rgba(59,130,246,0.1)",
-    title: "Keyword Cannibalization",
-    desc: "Find pages that are competing against each other.",
+    titleKey: "optCannibalization",
+    descKey: "optCannibalizationDesc",
   },
   {
+    id: "sdk",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="12" y1="20" x2="12" y2="10"/>
@@ -1097,10 +1103,11 @@ const OPTIMIZE_TOOLS = [
       </svg>
     ),
     iconBg: "rgba(245,158,11,0.1)",
-    title: "Striking Distance Keywords",
-    desc: "Find keywords you can easily rank for.",
+    titleKey: "optStriking",
+    descKey: "optStrikingDesc",
   },
   {
+    id: "ctr",
     icon: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <line x1="19" y1="5" x2="5" y2="19"/>
@@ -1109,27 +1116,30 @@ const OPTIMIZE_TOOLS = [
       </svg>
     ),
     iconBg: "rgba(16,185,129,0.1)",
-    title: "CTR Benchmark",
-    desc: "See if your titles are performing well.",
+    titleKey: "optCtr",
+    descKey: "optCtrDesc",
   },
 ];
 
 function OptimizeTab() {
   const [active, setActive] = useState<string | null>(null);
   const { blur } = usePrivacy();
+  const { t } = useLanguage();
   // We grab domain from useParams here for ContentDecayMap
   const params = useParams();
   const domain = decodeURIComponent(params.id as string);
 
   return (
     <div style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: "0" }}>
-      {OPTIMIZE_TOOLS.map(({ icon, iconBg, title, desc }, i) => {
-        const isActive = active === title;
+      {OPTIMIZE_TOOLS.map(({ id, icon, iconBg, titleKey, descKey }, i) => {
+        const isActive = active === id;
+        const title = t(titleKey as any);
+        const desc = t(descKey as any);
         return (
-          <div key={title}>
+          <div key={id}>
             {/* Card header row */}
             <div
-              onClick={() => setActive(isActive ? null : title)}
+              onClick={() => setActive(isActive ? null : id)}
               style={{
                 display: "flex", alignItems: "center", gap: "18px",
                 padding: "22px 20px",
@@ -1178,13 +1188,19 @@ function OptimizeTab() {
                 overflow: "hidden",
                 marginBottom: "12px",
               }}>
-                {title === "Content Decay Map" ? (
+                {id === "cdm" ? (
                   <ContentDecayMap domain={domain} />
+                ) : id === "kc" ? (
+                  <KeywordCannibalization />
+                ) : id === "sdk" ? (
+                  <StrikingDistanceKeywords />
+                ) : id === "ctr" ? (
+                  <CtrBenchmark />
                 ) : (
                   <div style={{ padding: "40px 32px", background: "var(--color-card)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
                     <div style={{ fontSize: "28px" }}>🚧</div>
                     <p style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-text-primary)" }}>{title}</p>
-                    <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>Coming soon — fill me in!</p>
+                    <p style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>{t("optComingSoon")}</p>
                   </div>
                 )}
               </div>

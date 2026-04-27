@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 type HeatMetric = "clicks" | "impressions";
@@ -87,6 +88,7 @@ const DECAY_ROWS: DecayRow[] = [
 
 // ─── How it works block ────────────────────────────────────────────────────────
 function HowItWorks() {
+  const { t } = useLanguage();
   return (
     <div style={{
       display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px",
@@ -102,13 +104,13 @@ function HowItWorks() {
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
           </div>
-          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)" }}>How it works</span>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("cdmHowItWorks")}</span>
         </div>
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
           {[
-            "The heatmap graph shows how each webpage performs over time, using color shading to highlight trends.",
-            "It lets you quickly see which pages consistently do well and which ones might need updating to improve.",
-            "This visual overview makes it easy to spot patterns across many pages and months, helping you focus your SEO work where it's needed most.",
+            t("cdmHowItWorks1"),
+            t("cdmHowItWorks2"),
+            t("cdmHowItWorks3"),
           ].map((text, i) => (
             <li key={i} style={{ display: "flex", gap: "10px", fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: "1.55" }}>
               <span style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(59,130,246,0.1)", color: "#3B82F6", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>{i + 1}</span>
@@ -126,14 +128,14 @@ function HowItWorks() {
               <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
             </svg>
           </div>
-          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)" }}>What to do about it</span>
+          <span style={{ fontSize: "14px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("cdmWhatToDo")}</span>
         </div>
         <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px", counterReset: "steps" }}>
           {[
-            "Select a time frame that you want to target (we recommend 16 months).",
-            "Set threshold to where you can start to see a wide range of color shades.",
-            "Look for pages that used to perform well that have since dropped off or high performing pages to replicate in other ways.",
-            "Pages that are refreshed or add new content by at least 30% have a significant increase in traffic on average.",
+            t("cdmWhatToDo1"),
+            t("cdmWhatToDo2"),
+            t("cdmWhatToDo3"),
+            t("cdmWhatToDo4"),
           ].map((text, i) => (
             <li key={i} style={{ display: "flex", gap: "10px", fontSize: "13px", color: "var(--color-text-secondary)", lineHeight: "1.55" }}>
               <span style={{ width: "18px", height: "18px", borderRadius: "50%", background: "rgba(16,185,129,0.1)", color: "#10B981", fontSize: "11px", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: "1px" }}>{i + 1}</span>
@@ -148,6 +150,7 @@ function HowItWorks() {
 
 // ─── Decaying Pages Table ──────────────────────────────────────────────────────
 function DecayingPagesTable() {
+  const { t } = useLanguage();
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const rows = DECAY_ROWS.slice(0, rowsPerPage);
 
@@ -157,7 +160,7 @@ function DecayingPagesTable() {
   return (
     <div style={{ padding: "20px 28px", borderBottom: "1px solid var(--color-border)" }}>
       <div style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "14px" }}>
-        Decaying Pages That May Need Refreshing
+        {t("cdmTableTitle")}
       </div>
 
       {/* Table header */}
@@ -172,12 +175,12 @@ function DecayingPagesTable() {
         borderBottom: "none",
         fontSize: "12px", fontWeight: 600, color: "var(--color-text-secondary)",
       }}>
-        <div>Page</div>
-        <div style={{ textAlign: "right" }}>Clicks Last 2mo</div>
-        <div style={{ textAlign: "right" }}>Clicks YoY</div>
-        <div style={{ textAlign: "right" }}>Top 10 Queries</div>
-        <div style={{ textAlign: "right" }}>Clicks</div>
-        <div style={{ textAlign: "right" }}>Status</div>
+        <div>{t("cdmPage")}</div>
+        <div style={{ textAlign: "right" }}>{t("cdmClicksLast2m")}</div>
+        <div style={{ textAlign: "right" }}>{t("cdmClicksYoY")}</div>
+        <div style={{ textAlign: "right" }}>{t("cdmTop10Queries")}</div>
+        <div style={{ textAlign: "right" }}>{t("clicks")}</div>
+        <div style={{ textAlign: "right" }}>{t("cdmStatus")}</div>
       </div>
 
       {/* Rows */}
@@ -223,9 +226,9 @@ function DecayingPagesTable() {
           borderTop: "1px solid var(--color-border)",
           fontSize: "12px", color: "var(--color-text-secondary)",
         }}>
-          <span>Showing 1 to {rows.length} of {DECAY_ROWS.length} pages</span>
+          <span>{t("cdmShowingRows").replace("{start}", "1").replace("{end}", String(rows.length)).replace("{total}", String(DECAY_ROWS.length))}</span>
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>Rows per page</span>
+            <span>{t("cdmRowsPerPage")}</span>
             <select
               value={rowsPerPage}
               onChange={e => setRowsPerPage(Number(e.target.value))}
@@ -247,6 +250,7 @@ function DecayingPagesTable() {
 
 // ─── Heatmap ───────────────────────────────────────────────────────────────────
 function Heatmap({ domain }: { domain: string }) {
+  const { t } = useLanguage();
   const [metric, setMetric] = useState<HeatMetric>("clicks");
   const [period, setPeriod] = useState<HeatPeriod>("month");
   const [threshold, setThreshold] = useState(30);
@@ -314,32 +318,32 @@ function Heatmap({ domain }: { domain: string }) {
                 ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               }
-              {m.charAt(0).toUpperCase() + m.slice(1)}
+              {metric === "clicks" ? t("clicks") : t("impressions")}
             </button>
           ))}
         </div>
 
         {/* Period toggles */}
         <div style={{ display: "flex", gap: "4px" }}>
-          {(["Month", "Week"] as const).map(p => (
+          {(["month", "week"] as HeatPeriod[]).map(p => (
             <button
               key={p}
-              onClick={() => setPeriod(p.toLowerCase() as HeatPeriod)}
+              onClick={() => setPeriod(p)}
               style={{
-                padding: "6px 13px", borderRadius: "8px", fontSize: "13px", fontWeight: period === p.toLowerCase() ? 700 : 400,
+                padding: "6px 13px", borderRadius: "8px", fontSize: "13px", fontWeight: period === p ? 700 : 400,
                 cursor: "pointer",
-                background: period === p.toLowerCase() ? "#fff" : "transparent",
-                color: period === p.toLowerCase() ? "#111" : "var(--color-text-secondary)",
-                border: `1px solid ${period === p.toLowerCase() ? "rgba(0,0,0,0.15)" : "var(--color-border)"}`,
+                background: period === p ? "#fff" : "transparent",
+                color: period === p ? "#111" : "var(--color-text-secondary)",
+                border: `1px solid ${period === p ? "rgba(0,0,0,0.15)" : "var(--color-border)"}`,
                 transition: "all 0.15s",
               }}
-            >{p}</button>
+            >{p === "month" ? t("periodMonth") : t("periodWeek")}</button>
           ))}
         </div>
 
         {/* Threshold slider */}
         <div style={{ display: "flex", alignItems: "center", gap: "10px", marginLeft: "4px" }}>
-          <span style={{ fontSize: "13px", color: "var(--color-text-secondary)", fontWeight: 500 }}>Threshold:</span>
+          <span style={{ fontSize: "13px", color: "var(--color-text-secondary)", fontWeight: 500 }}>{t("cdmThreshold")}</span>
           <input
             type="range" min={0} max={90} step={5}
             value={threshold}
@@ -388,13 +392,13 @@ function Heatmap({ domain }: { domain: string }) {
                   {"label" in c ? c.label : ""}
                 </th>
               ))}
-              <th style={{ textAlign: "center", fontSize: "11px", fontWeight: 700, color: "var(--color-text-secondary)", paddingBottom: "6px", paddingLeft: "8px" }}>TOTAL</th>
+              <th style={{ textAlign: "center", fontSize: "11px", fontWeight: 700, color: "var(--color-text-secondary)", paddingBottom: "6px", paddingLeft: "8px" }}>{t("cdmTotal")}</th>
             </tr>
           </thead>
           <tbody>
             {/* All pages row */}
             <tr>
-              <td style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text-primary)", paddingRight: "12px", paddingBottom: "3px" }}>All pages</td>
+              <td style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text-primary)", paddingRight: "12px", paddingBottom: "3px" }}>{t("cdmAllPages")}</td>
               {allVals.map((v, ci) => (
                 <td key={ci} style={{ padding: "1px" }}>
                   <div style={cellStyle(v)}>{v}</div>
