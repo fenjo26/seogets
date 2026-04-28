@@ -3,156 +3,187 @@ import { google } from 'googleapis';
 
 let isSyncing = false;
 
+/**
+ * Extract a clean hostname from a GSC siteUrl.
+ * sc-domain:example.com  → example.com
+ * https://example.com/   → example.com
+ */
+function cleanSiteUrl(siteUrl: string): string {
+  if (siteUrl.startsWith('sc-domain:')) {
+    return siteUrl.slice('sc-domain:'.length);
+  }
+  try {
+    return new URL(siteUrl).hostname;
+  } catch {
+    return siteUrl;
+  }
+}
+
 export async function runGscSync() {
   if (isSyncing) {
-    console.log('Sync already in progress. Skipping.');
+    console.log('[GSC Sync] Already in progress — skipping.');
     return;
   }
   isSyncing = true;
+
   try {
-    console.log('Starting GSC Data Sync...');
+    console.log('[GSC Sync] Starting…');
 
-  // 1. Get all Google accounts
-  const accounts = await prisma.account.findMany({
-    where: { provider: 'google' },
-  });
-
-  if (accounts.length === 0) {
-    console.log('No Google accounts found. Exiting.');
-    return;
-  }
-
-  // Define date range (e.g., last 3 days for a quick test)
-  const endDate = new Date();
-  endDate.setDate(endDate.getDate() - 2); // GSC data is usually 2 days behind
-  const startDate = new Date(endDate);
-  startDate.setDate(endDate.getDate() - 30); // fetch last 30 days
-
-  const startDateStr = startDate.toISOString().split('T')[0];
-  const endDateStr = endDate.toISOString().split('T')[0];
-
-  console.log(`Syncing data from ${startDateStr} to ${endDateStr}`);
-
-  for (const account of accounts) {
-    console.log(`Processing account: ${account.providerAccountId}`);
-    
-    const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET
-    );
-
-    oauth2Client.setCredentials({
-      access_token: account.access_token,
-      refresh_token: account.refresh_token,
-      expiry_date: account.expires_at ? account.expires_at * 1000 : undefined,
+    const accounts = await prisma.account.findMany({
+      where: { provider: 'google' },
     });
 
-    oauth2Client.on('tokens', async (tokens) => {
-      await prisma.account.update({
-        where: { id: account.id },
-        data: {
-          access_token: tokens.access_token ?? account.access_token,
-          refresh_token: tokens.refresh_token ?? account.refresh_token,
-          expires_at: tokens.expiry_date ? Math.floor(tokens.expiry_date / 1000) : account.expires_at,
-        },
-      });
-    });
-
-    const webmasters = google.webmasters({ version: 'v3', auth: oauth2Client });
-
-    let siteList;
-    try {
-      const response = await webmasters.sites.list();
-      siteList = response.data.siteEntry || [];
-    } catch (err: any) {
-      console.error(`Failed to list sites for account ${account.id}: ${err.message}`);
-      continue;
+    if (accounts.length === 0) {
+      console.log('[GSC Sync] No Google accounts found.');
+      return;
     }
 
-    for (const site of siteList) {
-      if (!site.siteUrl) continue;
-      
-      const cleanUrl = site.siteUrl.replace('sc-domain:', '');
-      console.log(`- Fetching data for ${cleanUrl}...`);
+    // GSC lags ~2 days
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - 2);
+    endDate.setHours(23, 59, 59, 999);
 
-      // Check if site exists in our DB
-      const dbSite = await prisma.site.findFirst({
-        where: { url: cleanUrl }
+    // 16 months of history so all period selectors have real data
+    const startDate = new Date(endDate);
+    startDate.setDate(endDate.getDate() - 480);
+    startDate.setHours(0, 0, 0, 0);
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr   = endDate.toISOString().split('T')[0];
+
+    console.log(`[GSC Sync] ${startDateStr} → ${endDateStr}`);
+
+    for (const account of accounts) {
+      console.log(`[GSC Sync] Account: ${account.providerAccountId}`);
+
+      const oauth2 = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET
+      );
+      oauth2.setCredentials({
+        access_token:  account.access_token,
+        refresh_token: account.refresh_token,
+        expiry_date:   account.expires_at ? account.expires_at * 1000 : undefined,
+      });
+      oauth2.on('tokens', async (tokens) => {
+        await prisma.account.update({
+          where: { id: account.id },
+          data: {
+            access_token:  tokens.access_token  ?? account.access_token,
+            refresh_token: tokens.refresh_token ?? account.refresh_token,
+            expires_at:    tokens.expiry_date
+              ? Math.floor(tokens.expiry_date / 1000)
+              : account.expires_at,
+          },
+        });
       });
 
-      if (!dbSite) {
-        console.log(`  Skipping (not in DB yet)`);
+      const wm = google.webmasters({ version: 'v3', auth: oauth2 });
+
+      let siteList: { siteUrl?: string | null }[] = [];
+      try {
+        const res = await wm.sites.list();
+        siteList = res.data.siteEntry ?? [];
+      } catch (err: any) {
+        console.error(`[GSC Sync] Failed to list sites: ${err.message}`);
         continue;
       }
 
-      try {
-        // Fetch site-wide daily aggregates (no dimensions except date)
-        const res = await webmasters.searchanalytics.query({
-          siteUrl: site.siteUrl,
-          requestBody: {
-            startDate: startDateStr,
-            endDate: endDateStr,
-            dimensions: ['date'],
-            rowLimit: 25000,
+      for (const gscSite of siteList) {
+        if (!gscSite.siteUrl) continue;
+
+        const gscUrl   = gscSite.siteUrl;       // exact GSC key, e.g. sc-domain:foo.gr
+        const hostname = cleanSiteUrl(gscUrl);  // e.g. foo.gr
+
+        // Match DB site by siteId (exact) OR by url / url-without-www
+        const dbSite = await prisma.site.findFirst({
+          where: {
+            OR: [
+              { siteId: gscUrl },
+              { url: hostname },
+              { url: hostname.replace(/^www\./, '') },
+            ],
           },
         });
 
-        const rows = res.data.rows || [];
-        console.log(`  Found ${rows.length} days of data`);
-
-        for (const row of rows) {
-          if (!row.keys || !row.keys[0]) continue;
-          
-          const dateStr = row.keys[0]; // e.g. "2024-01-01"
-          const dateObj = new Date(dateStr);
-
-          // We use query="" and url="" to represent site-wide aggregates
-          // For query-level and page-level data, we would add another API call with those dimensions.
-          const existing = await prisma.dailyMetric.findFirst({
-            where: {
-              siteId: dbSite.id,
-              date: dateObj,
-              query: "",
-              url: "",
-            }
-          });
-
-          if (!existing) {
-            await prisma.dailyMetric.create({
-              data: {
-                siteId: dbSite.id,
-                date: dateObj,
-                query: "",
-                url: "",
-                clicks: row.clicks || 0,
-                impressions: row.impressions || 0,
-                ctr: row.ctr || 0,
-                position: row.position || 0,
-              }
-            });
-          } else {
-            await prisma.dailyMetric.update({
-              where: { id: existing.id },
-              data: {
-                clicks: row.clicks || 0,
-                impressions: row.impressions || 0,
-                ctr: row.ctr || 0,
-                position: row.position || 0,
-              }
-            });
-          }
+        if (!dbSite) {
+          console.log(`[GSC Sync]   ${hostname} — not in DB, skipping`);
+          continue;
         }
 
-      } catch (err: any) {
-        console.error(`  Error fetching analytics: ${err.message}`);
+        console.log(`[GSC Sync]   Syncing ${hostname}`);
+
+        // Fix siteId in DB if it was stored differently
+        if (dbSite.siteId !== gscUrl) {
+          await prisma.site.update({
+            where: { id: dbSite.id },
+            data:  { siteId: gscUrl },
+          }).catch(() => {});
+        }
+
+        try {
+          const res = await wm.searchanalytics.query({
+            siteUrl: gscUrl,
+            requestBody: {
+              startDate:  startDateStr,
+              endDate:    endDateStr,
+              dimensions: ['date'],
+              rowLimit:   25000,
+              dataState:  'final',
+            },
+          });
+
+          const rows = res.data.rows ?? [];
+          console.log(`[GSC Sync]     ${rows.length} days`);
+
+          for (const row of rows) {
+            if (!row.keys?.[0]) continue;
+
+            const dateObj = new Date(row.keys[0]);
+
+            const existing = await prisma.dailyMetric.findFirst({
+              where: {
+                siteId: dbSite.id,
+                date:   dateObj,
+                url:    '',
+                query:  '',
+              },
+            });
+
+            if (!existing) {
+              await prisma.dailyMetric.create({
+                data: {
+                  siteId:      dbSite.id,
+                  date:        dateObj,
+                  url:         '',
+                  query:       '',
+                  clicks:      row.clicks      ?? 0,
+                  impressions: row.impressions ?? 0,
+                  ctr:         row.ctr         ?? 0,
+                  position:    row.position    ?? 0,
+                },
+              });
+            } else {
+              await prisma.dailyMetric.update({
+                where: { id: existing.id },
+                data: {
+                  clicks:      row.clicks      ?? 0,
+                  impressions: row.impressions ?? 0,
+                  ctr:         row.ctr         ?? 0,
+                  position:    row.position    ?? 0,
+                },
+              });
+            }
+          }
+        } catch (err: any) {
+          console.error(`[GSC Sync]     Error: ${err.message}`);
+        }
       }
     }
-  }
-
   } catch (e) {
-    console.error("Sync failed:", e);
+    console.error('[GSC Sync] Fatal error:', e);
   } finally {
     isSyncing = false;
-    console.log('Sync complete!');
+    console.log('[GSC Sync] Done.');
   }
 }
