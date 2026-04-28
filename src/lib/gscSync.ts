@@ -40,15 +40,22 @@ export async function runGscSync() {
     endDate.setDate(endDate.getDate() - 2);
     endDate.setHours(23, 59, 59, 999);
 
-    // 16 months of history so all period selectors have real data
-    const startDate = new Date(endDate);
-    startDate.setDate(endDate.getDate() - 480);
-    startDate.setHours(0, 0, 0, 0);
+    // Recent window: last 30 days (fast, syncs first for all sites)
+    const recentStart = new Date(endDate);
+    recentStart.setDate(endDate.getDate() - 30);
+    recentStart.setHours(0, 0, 0, 0);
 
-    const startDateStr = startDate.toISOString().split('T')[0];
-    const endDateStr   = endDate.toISOString().split('T')[0];
+    // Historical window: last 16 months (slower, for long period views)
+    const histStart = new Date(endDate);
+    histStart.setDate(endDate.getDate() - 480);
+    histStart.setHours(0, 0, 0, 0);
 
-    console.log(`[GSC Sync] ${startDateStr} → ${endDateStr}`);
+    const endDateStr      = endDate.toISOString().split('T')[0];
+    const recentStartStr  = recentStart.toISOString().split('T')[0];
+    const histStartStr    = histStart.toISOString().split('T')[0];
+
+    console.log(`[GSC Sync] Recent: ${recentStartStr} → ${endDateStr}`);
+    console.log(`[GSC Sync] History: ${histStartStr} → ${endDateStr}`);
 
     for (const account of accounts) {
       const userId = account.user.id;
@@ -137,8 +144,18 @@ export async function runGscSync() {
           }).catch(() => {});
         }
 
-        // ── Step 2: sync daily metrics ───────────────────────────────────────
+        // ── Step 2: sync daily metrics (recent first, then history) ─────────
         console.log(`[GSC Sync]   Syncing ${hostname}…`);
+
+        // Check if we already have recent data (to decide whether to do full history)
+        const recentCount = await prisma.dailyMetric.count({
+          where: { siteId: dbSite.id, date: { gte: recentStart }, url: '', query: '' },
+        });
+        const needsHistory = recentCount === 0; // new site → fetch full history
+
+        const startDateStr = needsHistory ? histStartStr : recentStartStr;
+        console.log(`[GSC Sync]     Range: ${startDateStr} → ${endDateStr} (${needsHistory ? 'full history' : 'recent only'})`);
+
         try {
           const res = await wm.searchanalytics.query({
             siteUrl: gscUrl,

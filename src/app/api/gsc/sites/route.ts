@@ -87,7 +87,16 @@ export async function GET() {
 
   // ── Upsert all sites into DB ──────────────────────────────────────────────
   for (const { siteUrl } of allSiteEntries) {
-    const cleanUrl = siteUrl.replace('sc-domain:', '');
+    // sc-domain:example.com → example.com
+    // https://example.com/  → example.com
+    let cleanUrl = siteUrl;
+    if (cleanUrl.startsWith('sc-domain:')) {
+      cleanUrl = cleanUrl.slice('sc-domain:'.length);
+    } else {
+      try { cleanUrl = new URL(cleanUrl).hostname; } catch {}
+    }
+    cleanUrl = cleanUrl.replace(/^www\./, ''); // strip www
+
     await prisma.site.upsert({
       where: {
         userId_siteId: {

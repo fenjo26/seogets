@@ -426,27 +426,41 @@ export default function PortfolioPage() {
       .catch(() => {});
   };
 
-  // On mount: trigger background sync then auto-refresh data
+  // On mount:
+  // 1. Discover all sites from all linked accounts (fast ~5s)
+  // 2. Trigger background data sync
   useEffect(() => {
     setSyncStatus("syncing");
-    fetch('/api/gsc/sync', { method: 'POST' }).catch(() => {});
 
-    // Refetch data after 45s (gives sync time to process first batch of sites)
-    const t1 = setTimeout(() => {
-      refetchPortfolio();
-    }, 45_000);
+    // Step 1: site discovery — lists GSC sites from all linked accounts, creates missing ones in DB
+    fetch('/api/gsc/sites')
+      .then(r => r.json())
+      .then(d => {
+        // Show discovered sites immediately (even before metrics are synced)
+        if (d.sites?.length) setSites(d.sites);
 
-    // Mark done after 90s
-    const t2 = setTimeout(() => {
-      setSyncStatus("done");
-      setSyncedAt(new Date());
-      refetchPortfolio();
-      // Hide "done" after 8s
-      const t3 = setTimeout(() => setSyncStatus("idle"), 8_000);
-      return () => clearTimeout(t3);
-    }, 90_000);
+        // Step 2: background data sync (fills in historical metrics)
+        fetch('/api/gsc/sync', { method: 'POST' }).catch(() => {});
 
-    return () => { clearTimeout(t1); clearTimeout(t2); };
+        // Refetch with real metrics after 45s
+        const t1 = setTimeout(() => refetchPortfolio(), 45_000);
+
+        // Mark done after 90s
+        const t2 = setTimeout(() => {
+          setSyncStatus("done");
+          setSyncedAt(new Date());
+          refetchPortfolio();
+          const t3 = setTimeout(() => setSyncStatus("idle"), 8_000);
+          return () => clearTimeout(t3);
+        }, 90_000);
+
+        return () => { clearTimeout(t1); clearTimeout(t2); };
+      })
+      .catch(() => {
+        // Discovery failed — try sync anyway
+        fetch('/api/gsc/sync', { method: 'POST' }).catch(() => {});
+        setSyncStatus("idle");
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
