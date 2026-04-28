@@ -409,6 +409,11 @@ export default function PortfolioPage() {
   const [filterDimension, setFilterDimension] = useState<"query"|"page"|"country"|"device"|null>(null);
   const [filterText, setFilterText] = useState("");
 
+  // On mount: trigger background sync (discovers new sites from all linked accounts + updates metrics)
+  useEffect(() => {
+    fetch('/api/gsc/sync', { method: 'POST' }).catch(() => {});
+  }, []);
+
   // Fetch real data from portfolio API whenever period changes
   useEffect(() => {
     setLoading(true);

@@ -99,25 +99,27 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
       </SectionCard>
 
       <SectionCard>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ marginBottom: "16px" }}>
+          {/* Title row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
             <GoogleIcon size={15} />
-            <h2 style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>{t("linkedAccounts")}</h2>
+            <h2 style={{ fontSize: "14px", fontWeight: 700, color: "#fff", margin: 0 }}>{t("linkedAccounts")}</h2>
             {!loadingAccounts && (
               <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)", background: "rgba(255,255,255,0.06)", borderRadius: "20px", padding: "2px 8px" }}>
                 {accounts.length} {accounts.length !== 1 ? t("accounts") : t("account")}
               </span>
             )}
           </div>
+          {/* Action buttons row */}
           <div style={{ display: "flex", gap: "8px" }}>
             <button onClick={() => {
               fetch("/api/gsc/sync", { method: "POST" });
               alert(t("syncStarted"));
-            }} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "7px", fontSize: "12px", fontWeight: 600, background: "rgba(16,185,129,0.12)", color: "#10B981", border: "1px solid rgba(16,185,129,0.25)", cursor: "pointer" }}
+            }} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600, background: "rgba(16,185,129,0.12)", color: "#10B981", border: "1px solid rgba(16,185,129,0.25)", cursor: "pointer" }}
               onMouseOver={e => e.currentTarget.style.background = "rgba(16,185,129,0.2)"} onMouseOut={e => e.currentTarget.style.background = "rgba(16,185,129,0.12)"}
             ><Globe size={13} /> {t("syncNow")}</button>
-            
-            <button onClick={onAdd} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "7px", fontSize: "12px", fontWeight: 600, background: "rgba(59,130,246,0.12)", color: "#3B82F6", border: "1px solid rgba(59,130,246,0.25)", cursor: "pointer" }}
+
+            <button onClick={onAdd} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "7px 14px", borderRadius: "8px", fontSize: "12px", fontWeight: 600, background: "rgba(59,130,246,0.12)", color: "#3B82F6", border: "1px solid rgba(59,130,246,0.25)", cursor: "pointer" }}
               onMouseOver={e => e.currentTarget.style.background = "rgba(59,130,246,0.2)"} onMouseOut={e => e.currentTarget.style.background = "rgba(59,130,246,0.12)"}
             ><Plus size={13} /> {t("addAccount")}</button>
           </div>

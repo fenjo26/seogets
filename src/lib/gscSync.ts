@@ -3,11 +3,6 @@ import { google } from 'googleapis';
 
 let isSyncing = false;
 
-/**
- * Extract a clean hostname from a GSC siteUrl.
- * sc-domain:example.com  → example.com
- * https://example.com/   → example.com
- */
 function cleanSiteUrl(siteUrl: string): string {
   if (siteUrl.startsWith('sc-domain:')) {
     return siteUrl.slice('sc-domain:'.length);
@@ -29,8 +24,10 @@ export async function runGscSync() {
   try {
     console.log('[GSC Sync] Starting…');
 
+    // Include userId via the user relation so we can create sites per user
     const accounts = await prisma.account.findMany({
       where: { provider: 'google' },
+      include: { user: { select: { id: true } } },
     });
 
     if (accounts.length === 0) {
@@ -54,7 +51,8 @@ export async function runGscSync() {
     console.log(`[GSC Sync] ${startDateStr} → ${endDateStr}`);
 
     for (const account of accounts) {
-      console.log(`[GSC Sync] Account: ${account.providerAccountId}`);
+      const userId = account.user.id;
+      console.log(`[GSC Sync] Account: ${account.providerAccountId} (user: ${userId})`);
 
       const oauth2 = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
@@ -80,47 +78,67 @@ export async function runGscSync() {
 
       const wm = google.webmasters({ version: 'v3', auth: oauth2 });
 
-      let siteList: { siteUrl?: string | null }[] = [];
+      let siteList: { siteUrl?: string | null; permissionLevel?: string | null }[] = [];
       try {
         const res = await wm.sites.list();
         siteList = res.data.siteEntry ?? [];
+        console.log(`[GSC Sync]   Found ${siteList.length} sites in GSC`);
       } catch (err: any) {
-        console.error(`[GSC Sync] Failed to list sites: ${err.message}`);
+        console.error(`[GSC Sync]   Failed to list sites: ${err.message}`);
         continue;
       }
 
       for (const gscSite of siteList) {
         if (!gscSite.siteUrl) continue;
 
-        const gscUrl   = gscSite.siteUrl;       // exact GSC key, e.g. sc-domain:foo.gr
-        const hostname = cleanSiteUrl(gscUrl);  // e.g. foo.gr
+        const gscUrl   = gscSite.siteUrl;
+        const hostname = cleanSiteUrl(gscUrl);
+        const hostnameNoWww = hostname.replace(/^www\./, '');
 
-        // Match DB site by siteId (exact) OR by url / url-without-www
-        const dbSite = await prisma.site.findFirst({
+        // ── Step 1: ensure site exists in DB for this user ──────────────────
+        let dbSite = await prisma.site.findFirst({
           where: {
+            userId,
             OR: [
               { siteId: gscUrl },
               { url: hostname },
-              { url: hostname.replace(/^www\./, '') },
+              { url: hostnameNoWww },
             ],
           },
         });
 
         if (!dbSite) {
-          console.log(`[GSC Sync]   ${hostname} — not in DB, skipping`);
-          continue;
-        }
-
-        console.log(`[GSC Sync]   Syncing ${hostname}`);
-
-        // Fix siteId in DB if it was stored differently
-        if (dbSite.siteId !== gscUrl) {
+          // Auto-create site for this user from this GSC account
+          console.log(`[GSC Sync]   Creating new site: ${hostname} for user ${userId}`);
+          try {
+            dbSite = await prisma.site.create({
+              data: {
+                userId,
+                siteId: gscUrl,
+                url:    hostnameNoWww || hostname,
+                tags:   '',
+              },
+            });
+          } catch (err: any) {
+            // May fail on duplicate userId+siteId — try to fetch instead
+            dbSite = await prisma.site.findFirst({
+              where: { userId, siteId: gscUrl },
+            });
+            if (!dbSite) {
+              console.error(`[GSC Sync]   Could not create site: ${err.message}`);
+              continue;
+            }
+          }
+        } else if (dbSite.siteId !== gscUrl) {
+          // Fix siteId if it was stored differently
           await prisma.site.update({
             where: { id: dbSite.id },
             data:  { siteId: gscUrl },
           }).catch(() => {});
         }
 
+        // ── Step 2: sync daily metrics ───────────────────────────────────────
+        console.log(`[GSC Sync]   Syncing ${hostname}…`);
         try {
           const res = await wm.searchanalytics.query({
             siteUrl: gscUrl,
@@ -134,20 +152,14 @@ export async function runGscSync() {
           });
 
           const rows = res.data.rows ?? [];
-          console.log(`[GSC Sync]     ${rows.length} days`);
+          console.log(`[GSC Sync]     ${rows.length} days of data`);
 
           for (const row of rows) {
             if (!row.keys?.[0]) continue;
-
             const dateObj = new Date(row.keys[0]);
 
             const existing = await prisma.dailyMetric.findFirst({
-              where: {
-                siteId: dbSite.id,
-                date:   dateObj,
-                url:    '',
-                query:  '',
-              },
+              where: { siteId: dbSite.id, date: dateObj, url: '', query: '' },
             });
 
             if (!existing) {
@@ -176,7 +188,7 @@ export async function runGscSync() {
             }
           }
         } catch (err: any) {
-          console.error(`[GSC Sync]     Error: ${err.message}`);
+          console.error(`[GSC Sync]     Error syncing ${hostname}: ${err.message}`);
         }
       }
     }
