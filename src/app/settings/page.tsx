@@ -13,7 +13,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 type NavItem = "accounts" | "teams" | "api" | "members" | "preferences" | "supersites";
 
 interface ConnectedAccount {
-  id: string; email: string; picture: string | null; connected: boolean;
+  id: string; email: string; picture: string | null; connected: boolean; gscAccess: boolean;
 }
 
 // ─── Shared helpers ───────────────────────────────────────────────────────────
@@ -60,11 +60,12 @@ function GoogleIcon({ size = 16 }: { size?: number }) {
 }
 
 // ─── Section: My Google Accounts ──────────────────────────────────────────────
-function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onRemove }: {
+function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onRemove, onReauth }: {
   user: any; accounts: ConnectedAccount[]; loadingAccounts: boolean;
-  removing: string | null; onAdd: () => void; onRemove: (id: string) => void;
+  removing: string | null; onAdd: () => void; onRemove: (id: string) => void; onReauth: (email: string) => void;
 }) {
   const { t } = useLanguage();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", alignItems: "flex-start" }}>
       <SectionCard>
@@ -140,28 +141,76 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
             </p>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
             {accounts.map(acc => (
-              <div key={acc.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 8px", borderRadius: "8px", transition: "background 0.15s" }}
-                onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.04)"} onMouseOut={e => e.currentTarget.style.background = "transparent"}>
-                <UserAvatar email={acc.email} picture={acc.picture} size={32} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{acc.email.split("@")[0]}</div>
-                  <div style={{ fontSize: "11px", color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{acc.email}</div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                  <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: "3px" }}>
-                    GSC: {acc.connected ? <CheckCircle size={11} color="#10B981" /> : <AlertCircle size={11} color="#F59E0B" />}
+              <div key={acc.id} style={{ borderRadius: "8px", border: confirmDeleteId === acc.id ? "1px solid rgba(239,68,68,0.4)" : acc.gscAccess ? "1px solid transparent" : "1px solid rgba(239,68,68,0.2)", background: confirmDeleteId === acc.id ? "rgba(239,68,68,0.07)" : acc.gscAccess ? "transparent" : "rgba(239,68,68,0.04)", transition: "all 0.15s" }}>
+
+                {/* Main account row */}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 8px" }}>
+                  <UserAvatar email={acc.email} picture={acc.picture} size={32} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{acc.email.split("@")[0]}</div>
+                    <div style={{ fontSize: "11px", color: "var(--color-text-secondary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{acc.email}</div>
+                  </div>
+                  <span style={{ fontSize: "11px", display: "flex", alignItems: "center", gap: "3px", color: acc.gscAccess ? "#10B981" : "#f87171", flexShrink: 0 }}>
+                    GSC {acc.gscAccess ? <CheckCircle size={11} color="#10B981" /> : <AlertCircle size={11} color="#f87171" />}
                   </span>
-                  <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", display: "flex", alignItems: "center", gap: "3px" }}>
-                    GA4: <AlertCircle size={11} color="#F59E0B" />
-                  </span>
+                  {/* Delete button */}
+                  {confirmDeleteId !== acc.id && (
+                    <button
+                      onClick={() => setConfirmDeleteId(acc.id)}
+                      disabled={removing === acc.id}
+                      style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 9px", borderRadius: "6px", fontSize: "11px", fontWeight: 500, background: "rgba(255,255,255,0.04)", color: "var(--color-text-secondary)", border: "1px solid rgba(255,255,255,0.08)", cursor: "pointer", flexShrink: 0, opacity: removing === acc.id ? 0.4 : 1 }}
+                      onMouseOver={e => { e.currentTarget.style.background = "rgba(239,68,68,0.1)"; e.currentTarget.style.color = "#f87171"; e.currentTarget.style.borderColor = "rgba(239,68,68,0.25)"; }}
+                      onMouseOut={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "var(--color-text-secondary)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+                    >
+                      <X size={11} /> Удалить
+                    </button>
+                  )}
                 </div>
-                <button onClick={() => onRemove(acc.id)} disabled={removing === acc.id}
-                  style={{ padding: "4px", borderRadius: "4px", flexShrink: 0, color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer", opacity: removing === acc.id ? 0.4 : 1 }}
-                  onMouseOver={e => e.currentTarget.style.color = "#f87171"} onMouseOut={e => e.currentTarget.style.color = "var(--color-text-secondary)"}>
-                  <X size={14} />
-                </button>
+
+                {/* Inline delete confirmation */}
+                {confirmDeleteId === acc.id && (
+                  <div style={{ padding: "0 8px 10px 50px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "12px", color: "#f87171", flex: 1 }}>
+                      Удалить аккаунт <strong>{acc.email}</strong>? Данные сайтов останутся в БД.
+                    </span>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, background: "rgba(255,255,255,0.06)", color: "var(--color-text-secondary)", border: "1px solid rgba(255,255,255,0.1)", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                      onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                      onMouseOut={e => e.currentTarget.style.background = "rgba(255,255,255,0.06)"}
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={() => { setConfirmDeleteId(null); onRemove(acc.id); }}
+                      disabled={removing === acc.id}
+                      style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, background: "rgba(239,68,68,0.15)", color: "#f87171", border: "1px solid rgba(239,68,68,0.35)", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, opacity: removing === acc.id ? 0.5 : 1 }}
+                      onMouseOver={e => e.currentTarget.style.background = "rgba(239,68,68,0.28)"}
+                      onMouseOut={e => e.currentTarget.style.background = "rgba(239,68,68,0.15)"}
+                    >
+                      <X size={11} /> Да, удалить
+                    </button>
+                  </div>
+                )}
+
+                {/* GSC re-auth warning */}
+                {!acc.gscAccess && confirmDeleteId !== acc.id && (
+                  <div style={{ padding: "0 8px 10px 50px", display: "flex", alignItems: "center", gap: "10px" }}>
+                    <span style={{ fontSize: "11px", color: "#f87171", flex: 1 }}>
+                      ⚠ Нет доступа к GSC — требуется повторная авторизация
+                    </span>
+                    <button
+                      onClick={() => onReauth(acc.email)}
+                      style={{ display: "flex", alignItems: "center", gap: "4px", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 600, background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+                      onMouseOver={e => e.currentTarget.style.background = "rgba(239,68,68,0.22)"}
+                      onMouseOut={e => e.currentTarget.style.background = "rgba(239,68,68,0.12)"}
+                    >
+                      <GoogleIcon size={11} /> Переавторизовать
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -667,6 +716,8 @@ export default function SettingsPage() {
   useEffect(() => { fetchAccounts(); }, []);
 
   const handleAdd = () => signIn("google", { callbackUrl: "/settings" });
+  const handleReauth = (email: string) =>
+    signIn("google", { callbackUrl: "/settings", login_hint: email });
   const handleRemove = async (id: string) => {
     if (!confirm(t("disconnectConfirm"))) return;
     setRemoving(id);
@@ -735,7 +786,7 @@ export default function SettingsPage() {
 
         {/* Main content */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {nav === "accounts"     && <AccountsSection user={user} accounts={accounts} loadingAccounts={loadingAccounts} removing={removing} onAdd={handleAdd} onRemove={handleRemove} />}
+          {nav === "accounts"     && <AccountsSection user={user} accounts={accounts} loadingAccounts={loadingAccounts} removing={removing} onAdd={handleAdd} onRemove={handleRemove} onReauth={handleReauth} />}
           {nav === "teams"        && <TeamsSection user={user} />}
           {nav === "api"          && <ApiSection />}
           {nav === "members"      && <MembersSection user={user} />}

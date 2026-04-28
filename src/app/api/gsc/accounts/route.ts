@@ -11,20 +11,28 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
+
   const accounts = await prisma.account.findMany({
     where: { userId, provider: 'google' },
-    select: { id: true, providerAccountId: true, scope: true, expires_at: true, access_token: true },
+    select: { id: true, providerAccountId: true, scope: true, expires_at: true, access_token: true, refresh_token: true },
   });
 
-  // Для каждого аккаунта получаем email через Google API
+  // For each account: fetch email via Google API + check GSC scope
   const enriched = await Promise.all(
     accounts.map(async (acc: typeof accounts[number]) => {
+      // Check scope stored in DB first (fast, no API call needed)
+      const gscAccess = acc.scope ? acc.scope.includes(GSC_SCOPE) : false;
+
       try {
         const oauth2Client = new google.auth.OAuth2(
           process.env.GOOGLE_CLIENT_ID,
           process.env.GOOGLE_CLIENT_SECRET
         );
-        oauth2Client.setCredentials({ access_token: acc.access_token });
+        oauth2Client.setCredentials({
+          access_token: acc.access_token,
+          refresh_token: acc.refresh_token,
+        });
         const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
         const info = await oauth2.userinfo.get();
         return {
@@ -32,9 +40,10 @@ export async function GET() {
           email: info.data.email || acc.providerAccountId,
           picture: info.data.picture,
           connected: true,
+          gscAccess,
         };
       } catch {
-        return { id: acc.id, email: acc.providerAccountId, picture: null, connected: false };
+        return { id: acc.id, email: acc.providerAccountId, picture: null, connected: false, gscAccess };
       }
     })
   );
