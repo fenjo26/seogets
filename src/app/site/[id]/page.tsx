@@ -1001,7 +1001,7 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
       {/* Empty state when not onboarding and no notes */}
       {!onboarding && notes.length === 0 && (
         <div style={{ padding: "64px 32px", textAlign: "center" }}>
-          <p style={{ fontSize: "14px", color: "var(--color-text-secondary)" }}>{t("annEmptyDesc", "You don't have any notes yet.")}</p>
+          <p style={{ fontSize: "14px", color: "var(--color-text-secondary)" }}>{t("annEmptyDesc")}</p>
         </div>
       )}
 
