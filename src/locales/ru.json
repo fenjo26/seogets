@@ -392,5 +392,7 @@
   "annAddNote": "+ Добавить Заметку",
   "annEmptyDesc": "У вас пока нет ни одной заметки.",
   "tagsPrompt": "Введите теги через запятую:",
-  "sortTags": "По тегам (A-Z)"
+  "sortTags": "По тегам (A-Z)",
+  "oauthTestModeTitle": "Не можете добавить новый аккаунт?",
+  "oauthTestModeDesc": "Если ваше приложение в Google Cloud находится в режиме «Тестирования» (Testing), вам необходимо сначала добавить этот новый email в список «Test users» на странице OAuth Consent Screen, иначе Google заблокирует авторизацию."
 }

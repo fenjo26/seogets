@@ -113,6 +113,12 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
             onMouseOver={e => e.currentTarget.style.background = "rgba(59,130,246,0.2)"} onMouseOut={e => e.currentTarget.style.background = "rgba(59,130,246,0.12)"}
           ><Plus size={13} /> {t("addAccount")}</button>
         </div>
+
+        {/* OAuth Test Users warning */}
+        <div style={{ padding: "12px 14px", background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", borderRadius: "8px", marginBottom: "16px" }}>
+          <div style={{ fontSize: "13px", fontWeight: 700, color: "#F59E0B", marginBottom: "4px" }}>{t("oauthTestModeTitle")}</div>
+          <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>{t("oauthTestModeDesc")}</div>
+        </div>
         {loadingAccounts ? (
           <div style={{ color: "var(--color-text-secondary)", fontSize: "13px", padding: "12px 0" }}>{t("loadingAccounts")}</div>
         ) : accounts.length === 0 ? (
