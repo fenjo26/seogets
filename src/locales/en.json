@@ -394,5 +394,7 @@
   "tagsPrompt": "Enter tags separated by comma:",
   "sortTags": "By Tags (A-Z)",
   "oauthTestModeTitle": "Trouble adding a new account?",
-  "oauthTestModeDesc": "If your Google Cloud app is in 'Testing' mode, you must add the new email address to the 'Test users' list in the Google Cloud Console (OAuth Consent Screen) before you can connect it."
+  "oauthTestModeDesc": "If your Google Cloud app is in 'Testing' mode, you must add the new email address to the 'Test users' list in the Google Cloud Console (OAuth Consent Screen) before you can connect it.",
+  "syncStarted": "Data sync started in background! It may take a few minutes to fetch all data.",
+  "syncNow": "Sync Data"
 }

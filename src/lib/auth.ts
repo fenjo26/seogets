@@ -87,7 +87,13 @@ export const authOptions: NextAuthOptions = {
         });
       }
 
-      // Always sign in as the owner, regardless of which Google account was used
+      // If the OAuth email is different from the owner's email, redirect to settings 
+      // instead of returning true. This prevents NextAuth from trying to create a new User 
+      // and a new Account (which would crash due to the unique constraint).
+      if (account.providerAccountId !== owner.email && user.email !== owner.email) {
+        return "/settings";
+      }
+
       user.id    = owner.id;
       user.email = owner.email!;
       user.name  = owner.name;

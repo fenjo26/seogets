@@ -109,9 +109,18 @@ function AccountsSection({ user, accounts, loadingAccounts, removing, onAdd, onR
               </span>
             )}
           </div>
-          <button onClick={onAdd} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "7px", fontSize: "12px", fontWeight: 600, background: "rgba(59,130,246,0.12)", color: "#3B82F6", border: "1px solid rgba(59,130,246,0.25)", cursor: "pointer" }}
-            onMouseOver={e => e.currentTarget.style.background = "rgba(59,130,246,0.2)"} onMouseOut={e => e.currentTarget.style.background = "rgba(59,130,246,0.12)"}
-          ><Plus size={13} /> {t("addAccount")}</button>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={() => {
+              fetch("/api/gsc/sync", { method: "POST" });
+              alert(t("syncStarted"));
+            }} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "7px", fontSize: "12px", fontWeight: 600, background: "rgba(16,185,129,0.12)", color: "#10B981", border: "1px solid rgba(16,185,129,0.25)", cursor: "pointer" }}
+              onMouseOver={e => e.currentTarget.style.background = "rgba(16,185,129,0.2)"} onMouseOut={e => e.currentTarget.style.background = "rgba(16,185,129,0.12)"}
+            ><Globe size={13} /> {t("syncNow")}</button>
+            
+            <button onClick={onAdd} style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "7px", fontSize: "12px", fontWeight: 600, background: "rgba(59,130,246,0.12)", color: "#3B82F6", border: "1px solid rgba(59,130,246,0.25)", cursor: "pointer" }}
+              onMouseOver={e => e.currentTarget.style.background = "rgba(59,130,246,0.2)"} onMouseOut={e => e.currentTarget.style.background = "rgba(59,130,246,0.12)"}
+            ><Plus size={13} /> {t("addAccount")}</button>
+          </div>
         </div>
 
         {/* OAuth Test Users warning */}
