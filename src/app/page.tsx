@@ -15,7 +15,7 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Metric = "clicks" | "impressions" | "ctr" | "position";
-type SortBy = "az" | "total" | "growth" | "growth_pct";
+type SortBy = "az" | "total" | "growth" | "growth_pct" | "tags";
 type Comparison = "disabled" | "previous" | "yoy" | "prev_month" | "custom";
 type PeriodView = "day" | "week" | "month";
 type SearchType = "web" | "discover" | "news" | "image" | "video";
@@ -392,7 +392,8 @@ export default function PortfolioPage() {
   const { blur } = usePrivacy();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const router = useRouter();
-  const [hidden,    setHidden]    = useState<Set<string>>(new Set());
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [siteTags, setSiteTags] = useState<Record<string, string[]>>({});
   const [exportSite, setExportSite] = useState<string | null>(null);
 
   const [activeMetrics, setActiveMetrics] = useState<Set<Metric>>(new Set(["clicks", "impressions", "ctr", "position"]));
@@ -429,7 +430,10 @@ export default function PortfolioPage() {
   const filtered = sitesWithData
     .filter(s => {
       const domain = getDomain(s.url).toLowerCase();
-      if (!domain.includes(search.toLowerCase())) return false;
+      const tagsStr = (siteTags[s.id] || []).join(" ").toLowerCase();
+      const searchLower = search.toLowerCase();
+      
+      if (!domain.includes(searchLower) && !tagsStr.includes(searchLower)) return false;
       if (branded === "branded"    && brandedRatio(s.url) <  0.45) return false;
       if (branded === "nonbranded" && brandedRatio(s.url) >= 0.45) return false;
       if (filterText.trim()) {
@@ -454,6 +458,11 @@ export default function PortfolioPage() {
                - (a.summary.clicks.value * a.summary.clicks.change / 100);
         case "growth_pct":
           return b.summary.clicks.change - a.summary.clicks.change;
+        case "tags": {
+          const aTag = siteTags[a.id]?.[0]?.toLowerCase() || "zzz";
+          const bTag = siteTags[b.id]?.[0]?.toLowerCase() || "zzz";
+          return aTag.localeCompare(bTag) || getDomain(a.url).localeCompare(getDomain(b.url));
+        }
         default:
           return 0;
       }
@@ -524,12 +533,13 @@ export default function PortfolioPage() {
     "total":      t("sortTotal"),
     "growth":     t("sortGrowth"),
     "growth_pct": t("sortGrowthPct"),
+    "tags":       t("sortTags"),
   };
 
   // Sort dropdown
   const SortDd = (
     <Dropdown trigger={<button style={tbBtn()}><ArrowUpDown size={13} /> {t("sort")}</button>}>
-      {(["az","total","growth","growth_pct"] as SortBy[]).map(v => (
+      {(["az","total","growth","growth_pct","tags"] as SortBy[]).map(v => (
         <button key={v} style={mi(sortBy===v)} onClick={() => setSortBy(v)}>
           {sortLabels[v]}{sortBy===v && <Check size={12} style={{marginLeft:"auto"}} />}
         </button>
@@ -766,28 +776,45 @@ export default function PortfolioPage() {
         {/* Chart */}
         <MultiMetricChart data={site.data} activeMetrics={activeMetrics} />
 
-        {/* Footer: 4 action icons */}
-        <div style={{display:"flex",justifyContent:"flex-end",gap:"14px",paddingTop:"2px"}} onClick={e=>e.stopPropagation()}>
-          <button title={t("advancedExport")} onClick={()=>setExportSite(domain)}
+        {/* Footer: tags and 4 action icons */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:"2px"}} onClick={e=>e.stopPropagation()}>
+          {/* Tags */}
+          <div style={{display:"flex",gap:"4px",flexWrap:"wrap",maxWidth:"180px"}}>
+            {(siteTags[site.id] || []).map(tag => (
+              <span key={tag} style={{fontSize:"10px",fontWeight:600,padding:"2px 6px",borderRadius:"4px",background:"rgba(59,130,246,0.1)",color:"#3B82F6",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"80px"}} title={tag}>
+                {tag}
+              </span>
+            ))}
+          </div>
+          {/* Icons */}
+          <div style={{display:"flex",gap:"14px"}}>
+            <button title={t("advancedExport")} onClick={()=>setExportSite(domain)}
             style={{color:"var(--color-text-secondary)",opacity:0.5,transition:"all 0.15s",lineHeight:1}}
             onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>(e.currentTarget.style.opacity="0.5")}>
             <Download size={13}/>
           </button>
-          <button title={t("tags")}
-            style={{color:"var(--color-text-secondary)",opacity:0.5,transition:"all 0.15s",lineHeight:1}}
-            onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>(e.currentTarget.style.opacity="0.5")}>
-            <Tag size={13}/>
-          </button>
+            <button title={t("tags")} onClick={() => {
+              const current = (siteTags[site.id] || []).join(", ");
+              const input = window.prompt(t("tagsPrompt") || "Enter tags separated by commas:", current);
+              if (input !== null) {
+                setSiteTags(prev => ({ ...prev, [site.id]: input.split(",").map(x => x.trim()).filter(Boolean) }));
+              }
+            }}
+              style={{color:"var(--color-text-secondary)",opacity:0.5,transition:"all 0.15s",lineHeight:1}}
+              onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>(e.currentTarget.style.opacity="0.5")}>
+              <Tag size={13}/>
+            </button>
           <button title={hidden.has(site.id) ? t("unhideSite") : t("hideSite")} onClick={()=>toggleHide(site.id)}
             style={{color:hidden.has(site.id)?"#3B82F6":"var(--color-text-secondary)",opacity:hidden.has(site.id)?1:0.5,transition:"all 0.15s",lineHeight:1}}
             onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>{if(!hidden.has(site.id))e.currentTarget.style.opacity="0.5";}}>
             <EyeOff size={13}/>
           </button>
-          <button title={isFav ? t("removeFromFavorites") : t("addToFavorites")} onClick={()=>toggleFav(site.id)}
-            style={{color:isFav?"var(--color-warning)":"var(--color-text-secondary)",opacity:isFav?1:0.5,transition:"all 0.15s",lineHeight:1}}
-            onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>{if(!isFav)e.currentTarget.style.opacity="0.5";}}>
-            <Star size={13} fill={isFav?"var(--color-warning)":"none"}/>
-          </button>
+            <button title={isFav ? t("removeFromFavorites") : t("addToFavorites")} onClick={()=>toggleFav(site.id)}
+              style={{color:isFav?"var(--color-warning)":"var(--color-text-secondary)",opacity:isFav?1:0.5,transition:"all 0.15s",lineHeight:1}}
+              onMouseOver={e=>(e.currentTarget.style.opacity="1")} onMouseOut={e=>{if(!isFav)e.currentTarget.style.opacity="0.5";}}>
+              <Star size={13} fill={isFav?"var(--color-warning)":"none"}/>
+            </button>
+          </div>
         </div>
       </div>
     );

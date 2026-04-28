@@ -7,9 +7,14 @@ import { useLanguage } from "@/lib/i18n/LanguageProvider";
 type HeatMetric = "clicks" | "impressions";
 type HeatPeriod = "month" | "week";
 
-// ─── Mock data helpers ─────────────────────────────────────────────────────────
-function rnd(lo: number, hi: number) { return lo + Math.random() * (hi - lo); }
-function rndInt(lo: number, hi: number) { return Math.round(rnd(lo, hi)); }
+// Deterministic pseudo-random based on string
+function hashVal(str: string): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0) / 4294967296; // returns 0..1
+}
 
 const MOCK_PAGES = [
   "/betovo-casino-bonus-code/",
@@ -49,12 +54,30 @@ function getWeekCols(count = 16): { label: string }[] {
 }
 
 // Deterministic-ish values per page+col combo
-function seedVal(page: string, col: number, metric: HeatMetric): number {
-  let h = 0;
-  for (const c of page) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  const base = (h % 80) + col * 3;
-  if (metric === "impressions") return Math.max(0, Math.round(base * 8 + rndInt(0, 20)));
-  return Math.max(0, Math.round(base / 6 + rndInt(0, 3)));
+function seedVal(page: string, col: number, metric: HeatMetric, period: HeatPeriod): number {
+  const h1 = hashVal(page + "base"); // 0..1
+  const h2 = hashVal(page + "trend"); // 0..1
+  
+  // trend from -0.8 to +1.5
+  const trend = (h2 * 2.3) - 0.8; 
+  
+  const base = 10 + (h1 * 120); // base value
+  
+  // apply trend over time (col is 0..15)
+  // if trend is negative, it decays. if positive, it grows.
+  const timeFactor = Math.max(0.1, 1 + (trend * (col / 15))); 
+  
+  const h3 = hashVal(page + col + metric + period);
+  const jitter = h3 * 0.3 + 0.85; // 0.85 to 1.15 multiplier
+  
+  let val = metric === "impressions" ? base * 45 : base;
+  
+  // scale for period: month is ~4.3x week
+  if (period === "month") {
+    val *= 4.3;
+  }
+  
+  return Math.max(0, Math.round(val * timeFactor * jitter));
 }
 
 // Color scale: 0 = white/transparent, high = blue
@@ -271,9 +294,9 @@ function Heatmap({ domain }: { domain: string }) {
   const matrix = useMemo(() => {
     return MOCK_PAGES.map(page => ({
       page,
-      vals: cols.map((_, ci) => seedVal(page, ci, metric)),
+      vals: cols.map((_, ci) => seedVal(page, ci, metric, period)),
     }));
-  }, [cols, metric]);
+  }, [cols, metric, period]);
 
   // Row for "All pages"
   const allVals = useMemo(() =>

@@ -390,6 +390,7 @@
   "annCreateNoteBtn": "+ Create your first note",
   "annOrTryItWith": "or try it with",
   "annAddNote": "+ Add Note",
-  "avgPosition": "avg. position",
-  "annEmptyDesc": "You don't have any notes yet."
+  "annEmptyDesc": "You don't have any notes yet.",
+  "tagsPrompt": "Enter tags separated by comma:",
+  "sortTags": "By Tags (A-Z)"
 }

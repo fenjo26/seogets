@@ -390,6 +390,7 @@
   "annCreateNoteBtn": "+ Создать первую заметку",
   "annOrTryItWith": "или попробуйте с",
   "annAddNote": "+ Добавить Заметку",
-  "avgPosition": "ср. позиция",
-  "annEmptyDesc": "У вас пока нет ни одной заметки."
+  "annEmptyDesc": "У вас пока нет ни одной заметки.",
+  "tagsPrompt": "Введите теги через запятую:",
+  "sortTags": "По тегам (A-Z)"
 }

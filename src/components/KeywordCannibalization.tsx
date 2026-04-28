@@ -148,13 +148,27 @@ function CannibalizationTable() {
         if (filterSeverity === "possible" && isTrueCannibalization(g)) return false;
         return true;
       })
-      .map(g => ({
-        ...g,
-        pages: [...g.pages].sort((a, b) => {
+      .map(g => {
+        const pages = [...g.pages].sort((a, b) => {
           if (sortKey === "position") return a[sortKey] - b[sortKey];
           return b[sortKey] - a[sortKey];
-        }),
-      }));
+        });
+        
+        let groupSortValue = 0;
+        if (sortKey === "position") {
+          groupSortValue = Math.min(...pages.map(p => p.position));
+        } else if (sortKey === "ctr") {
+          groupSortValue = Math.max(...pages.map(p => p.ctr));
+        } else {
+          groupSortValue = pages.reduce((sum, p) => sum + p[sortKey], 0);
+        }
+
+        return { ...g, pages, groupSortValue };
+      })
+      .sort((a, b) => {
+        if (sortKey === "position") return a.groupSortValue - b.groupSortValue;
+        return b.groupSortValue - a.groupSortValue;
+      });
   }, [search, sortKey, filterSeverity]);
 
   const toggleExpand = (query: string) => {

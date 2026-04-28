@@ -95,11 +95,12 @@ function InfoBlocks() {
           {Object.entries(BENCHMARKS).map(([pos, ctr]) => {
             const widthPct = (ctr / 27.6) * 100;
             return (
-              <div key={pos} style={{ display: "flex", alignItems: "center", gap: "8px", height: "14px" }}>
-                <div style={{ flex: 1, height: "100%", background: "transparent", display: "flex" }}>
-                  <div style={{ width: `${widthPct}%`, height: "100%", background: "#93c5fd", borderRadius: "2px" }} />
+              <div key={pos} style={{ display: "flex", alignItems: "center", gap: "10px", height: "16px" }}>
+                <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--color-text-secondary)", width: "16px", textAlign: "right" }}>#{pos}</span>
+                <div style={{ flex: 1, height: "100%", background: "rgba(147,197,253,0.15)", borderRadius: "3px", display: "flex", overflow: "hidden" }}>
+                  <div style={{ width: `${widthPct}%`, height: "100%", background: "#3B82F6", borderRadius: "3px" }} />
                 </div>
-                <span style={{ fontSize: "12px", fontWeight: 500, color: "var(--color-text-primary)", width: "40px" }}>{ctr}%</span>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-primary)", width: "40px", textAlign: "right" }}>{ctr}%</span>
               </div>
             );
           })}
