@@ -409,10 +409,18 @@ export default function PortfolioPage() {
   const [filterDimension, setFilterDimension] = useState<"query"|"page"|"country"|"device"|null>(null);
   const [filterText, setFilterText] = useState("");
 
+  // Fetch real data from portfolio API whenever period changes
   useEffect(() => {
-    fetch("/api/gsc/sites").then(r => r.json()).then(d => { if (d.sites) setSites(d.sites); }).catch(() => {}).finally(() => setLoading(false));
-  }, []);
+    setLoading(true);
+    fetch(`/api/gsc/portfolio?period=${period}`)
+      .then(r => r.json())
+      .then(d => { if (d.sites) setSites(d.sites); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [period]);
 
+  // sitesWithData = sites already have real .data and .summary from the API
+  // Fall back to fake data only if the site has no real metrics yet
   const sitesWithData = useMemo(() => {
     const days = periodToDays(period);
     const maxPoints = 90;
@@ -420,7 +428,34 @@ export default function PortfolioPage() {
     const yd = new Date(); yd.setDate(yd.getDate() - 1);
     const startDate = new Date(yd);
     startDate.setDate(yd.getDate() - n + 1);
-    return sites.map(s => ({ ...s, ...makeSiteData(n, startDate) }));
+
+    return sites.map(s => {
+      if (s.hasData && s.data?.length > 0) {
+        // Real data: normalise chart arrays the same way the fake data does
+        return s;
+      }
+      // No data synced yet — show placeholder zeros instead of fake numbers
+      const emptyData = Array.from({ length: n }, (_, i) => {
+        const d = new Date(startDate); d.setDate(startDate.getDate() + i);
+        return {
+          date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+          clicks: 0, impressions: 0, ctr: 0, position: 0,
+          clicksC: 0, impressionsC: 0, ctrC: 0, positionC: 0,
+          cN: 50, iN: 50, tN: 50, pN: 50,
+          cCN: 50, iCN: 50, tCN: 50, pCN: 50,
+        };
+      });
+      return {
+        ...s,
+        data: emptyData,
+        summary: {
+          clicks:      { value: 0, change: 0 },
+          impressions: { value: 0, change: 0 },
+          ctr:         { value: 0, change: 0 },
+          position:    { value: 0, change: 0 },
+        },
+      };
+    });
   }, [sites, period]);
   const activeFilterCount = [
     branded !== "all",

@@ -31,6 +31,70 @@ const C = {
   position:    "#F59E0B",
 };
 
+// ─── Period options (module-level so all sub-components can reference) ────────
+const PERIOD_OPTIONS: { key: string; label: string }[] = [
+  { key: "7d",  label: "7 days"    },
+  { key: "14d", label: "14 days"   },
+  { key: "28d", label: "28 days"   },
+  { key: "3m",  label: "3 months"  },
+  { key: "6m",  label: "6 months"  },
+  { key: "12m", label: "12 months" },
+];
+
+// ─── Country code helpers (GSC returns ISO 3166-1 alpha-3 codes) ──────────────
+const ISO3_TO_ISO2: Record<string, string> = {
+  grc:"gr", usa:"us", cyp:"cy", tur:"tr", mkd:"mk", swe:"se", ita:"it",
+  srb:"rs", irl:"ie", gbr:"gb", deu:"de", fra:"fr", esp:"es", pol:"pl",
+  rou:"ro", nld:"nl", bel:"be", aut:"at", che:"ch", prt:"pt", nor:"no",
+  dnk:"dk", fin:"fi", cze:"cz", hun:"hu", bgr:"bg", hrv:"hr", svk:"sk",
+  svn:"si", alb:"al", bih:"ba", mne:"me", mda:"md", ltu:"lt", lva:"lv",
+  est:"ee", rus:"ru", ukr:"ua", blr:"by", geo:"ge", arm:"am", aze:"az",
+  aus:"au", can:"ca", bra:"br", arg:"ar", mex:"mx", chn:"cn", jpn:"jp",
+  kor:"kr", ind:"in", idn:"id", pak:"pk", sau:"sa", are:"ae", isr:"il",
+  egy:"eg", zaf:"za", nga:"ng", ken:"ke", mar:"ma", col:"co", chl:"cl",
+  per:"pe", tha:"th", vnm:"vn", phl:"ph", mys:"my", sgp:"sg", nzl:"nz",
+  irn:"ir", irq:"iq", lbn:"lb", jor:"jo", kwt:"kw", qat:"qa", bhr:"bh",
+  omn:"om", dza:"dz", tun:"tn", lby:"ly", sdn:"sd", eth:"et", tza:"tz",
+  uga:"ug", gha:"gh", cmr:"cm", ven:"ve", ecu:"ec", ury:"uy", pry:"py",
+  bol:"bo", gtm:"gt", cri:"cr", pan:"pa", dom:"do", cub:"cu", hti:"ht",
+  twn:"tw", hkg:"hk", lka:"lk", bgd:"bd", npl:"np", mmr:"mm", khm:"kh",
+  lao:"la", mnl:"ph", uzb:"uz", kaz:"kz", tkm:"tm", tad:"tj", kgz:"kg",
+  afg:"af", pse:"ps", yem:"ye", syr:"sy",
+};
+
+const ISO3_NAMES: Record<string, string> = {
+  grc:"Greece", usa:"United States", cyp:"Cyprus", tur:"Türkiye",
+  mkd:"North Macedonia", swe:"Sweden", ita:"Italy", srb:"Serbia",
+  irl:"Ireland", gbr:"United Kingdom", deu:"Germany", fra:"France",
+  esp:"Spain", pol:"Poland", rou:"Romania", nld:"Netherlands",
+  bel:"Belgium", aut:"Austria", che:"Switzerland", prt:"Portugal",
+  nor:"Norway", dnk:"Denmark", fin:"Finland", cze:"Czech Republic",
+  hun:"Hungary", bgr:"Bulgaria", hrv:"Croatia", svk:"Slovakia",
+  svn:"Slovenia", alb:"Albania", bih:"Bosnia", mne:"Montenegro",
+  mda:"Moldova", ltu:"Lithuania", lva:"Latvia", est:"Estonia",
+  rus:"Russia", ukr:"Ukraine", blr:"Belarus", geo:"Georgia",
+  arm:"Armenia", aze:"Azerbaijan", aus:"Australia", can:"Canada",
+  bra:"Brazil", arg:"Argentina", mex:"Mexico", chn:"China",
+  jpn:"Japan", kor:"South Korea", ind:"India", idn:"Indonesia",
+  pak:"Pakistan", sau:"Saudi Arabia", are:"UAE", isr:"Israel",
+  egy:"Egypt", zaf:"South Africa", nga:"Nigeria", ken:"Kenya",
+  mar:"Morocco", col:"Colombia", chl:"Chile", per:"Peru",
+  tha:"Thailand", vnm:"Vietnam", phl:"Philippines", mys:"Malaysia",
+  sgp:"Singapore", nzl:"New Zealand", irn:"Iran", irq:"Iraq",
+  lbn:"Lebanon", jor:"Jordan", kwt:"Kuwait", qat:"Qatar",
+  dza:"Algeria", tun:"Tunisia", ven:"Venezuela",
+};
+
+function iso3ToFlag(code: string): string {
+  const iso2 = ISO3_TO_ISO2[code.toLowerCase()];
+  if (!iso2) return "🌐";
+  return [...iso2.toUpperCase()].map(c => String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)).join("");
+}
+
+function iso3ToName(code: string): string {
+  return ISO3_NAMES[code.toLowerCase()] ?? code.toUpperCase();
+}
+
 // ─── Mock data ────────────────────────────────────────────────────────────────
 function rnd(lo: number, hi: number) { return lo + Math.random() * (hi - lo); }
 function rndInt(lo: number, hi: number) { return Math.round(rnd(lo, hi)); }
@@ -191,7 +255,8 @@ function DataTable({ title, rows, tabs, blur = false }: {
   );
 }
 
-function CountryTable({ rows }: { rows: ReturnType<typeof makeCountryRows> }) {
+type CountryRow = { name: string; flag?: string; clicks: number; impr: number; ctr: number; pos: number; cPct: number; iPct: number };
+function CountryTable({ rows }: { rows: CountryRow[] }) {
   const { t } = useLanguage();
   const [tab, setTab] = useState("All");
   const sorted = tab === "Growing" ? [...rows].sort((a, b) => b.cPct - a.cPct)
@@ -213,28 +278,43 @@ function CountryTable({ rows }: { rows: ReturnType<typeof makeCountryRows> }) {
           </tr>
         </thead>
         <tbody>
-          {sorted.map((r, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
-              <td style={{ padding: "8px 8px 8px 0", color: "var(--color-text-primary)" }}>{r.flag} {r.name}</td>
-              <td style={{ padding: "8px 8px", fontWeight: 500, color: "var(--color-text-primary)" }}>{r.clicks}<Change pct={r.cPct} /></td>
-              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{fmtK(r.impr)}<Change pct={r.iPct} /></td>
-              <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{r.ctr}%</td>
-              <td style={{ padding: "8px 0", color: "var(--color-text-secondary)" }}>{r.pos}</td>
-            </tr>
-          ))}
+          {sorted.map((r, i) => {
+            // Support both pre-resolved (flag + name) and raw GSC ISO-3 codes
+            const flag = r.flag || iso3ToFlag(r.name);
+            const label = r.flag ? r.name : iso3ToName(r.name);
+            return (
+              <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
+                <td style={{ padding: "8px 8px 8px 0", color: "var(--color-text-primary)" }}>{flag} {label}</td>
+                <td style={{ padding: "8px 8px", fontWeight: 500, color: "var(--color-text-primary)" }}>{r.clicks}<Change pct={r.cPct} /></td>
+                <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{fmtK(r.impr)}<Change pct={r.iPct} /></td>
+                <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{r.ctr}%</td>
+                <td style={{ padding: "8px 0", color: "var(--color-text-secondary)" }}>{r.pos}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
 }
 
-function DeviceTable() {
+type DeviceRow = { name: string; clicks: number; impr: number; ctr: number; pos: number; cPct: number; iPct: number; ctrPct: number; posDelta: number };
+function DeviceTable({ rows }: { rows: DeviceRow[] }) {
   const { t } = useLanguage();
-  const devices = [
-    { name: t("deviceMobile"),  icon: <Smartphone size={14} />, clicks: 138, cPct: 66, impr: 1700, iPct: 75, ctr: 7.9, ctrPct: 5.1, pos: 12.3, posDelta: -1.4 },
-    { name: t("deviceDesktop"), icon: <Monitor size={14} />,    clicks: 17,  cPct: 6,  impr: 689,  iPct: 71, ctr: 2.5, ctrPct: 44.9, pos: 17.7, posDelta: -6 },
-    { name: t("deviceTablet"),  icon: <Tablet size={14} />,     clicks: 1,   cPct: 999, impr: 13,  iPct: 18, ctr: 7.7, ctrPct: 999, pos: 17.3, posDelta: 4.9 },
-  ];
+  const iconFor = (name: string) => {
+    const n = name.toLowerCase();
+    if (n === "mobile")  return <Smartphone size={14} />;
+    if (n === "tablet")  return <Tablet size={14} />;
+    return <Monitor size={14} />;
+  };
+  const labelFor = (name: string) => {
+    const n = name.toLowerCase();
+    if (n === "mobile")  return t("deviceMobile");
+    if (n === "tablet")  return t("deviceTablet");
+    if (n === "desktop") return t("deviceDesktop");
+    return name;
+  };
+  const devices = rows.length > 0 ? rows : [];
   const [tab, setTab] = useState("All");
   return (
     <div>
@@ -256,7 +336,7 @@ function DeviceTable() {
           {devices.map((d, i) => (
             <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
               <td style={{ padding: "8px 8px 8px 0", display: "flex", alignItems: "center", gap: "6px", color: "var(--color-text-primary)" }}>
-                {d.icon} {d.name}
+                {iconFor(d.name)} {labelFor(d.name)}
               </td>
               <td style={{ padding: "8px 8px", fontWeight: 500, color: "var(--color-text-primary)" }}>{d.clicks}<Change pct={d.cPct} /></td>
               <td style={{ padding: "8px 8px", color: "var(--color-text-secondary)" }}>{fmtK(d.impr)}<Change pct={d.iPct} /></td>
@@ -393,11 +473,14 @@ function GA4Tab({ domain, period, setPeriod, periodOptions }: {
             </button>
           }
         >
-          {periodOptions.map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer", width: "100%", background: period === p ? "rgba(59,130,246,0.12)" : "transparent", color: period === p ? "#3B82F6" : "var(--color-text-primary)", border: "none" }}>
-              {p} {period === p && <Check size={12} style={{ marginLeft: "auto" }} />}
-            </button>
-          ))}
+          {periodOptions.map(p => {
+            const lbl = PERIOD_OPTIONS.find(o => o.key === p)?.label ?? p;
+            return (
+              <button key={p} onClick={() => setPeriod(p)} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer", width: "100%", background: period === p ? "rgba(59,130,246,0.12)" : "transparent", color: period === p ? "#3B82F6" : "var(--color-text-primary)", border: "none" }}>
+                {lbl} {period === p && <Check size={12} style={{ marginLeft: "auto" }} />}
+              </button>
+            );
+          })}
         </SimpleDropdown>
       </div>
 
@@ -929,11 +1012,14 @@ function AnnotationsTab({ period, setPeriod, periodOptions }: {
             {period} <ChevronDown size={13} />
           </button>
         }>
-          {periodOptions.map(p => (
-            <button key={p} onClick={() => setPeriod(p)} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer", width: "100%", background: period === p ? "rgba(59,130,246,0.12)" : "transparent", color: period === p ? "#3B82F6" : "var(--color-text-primary)", border: "none" }}>
-              {p} {period === p && <Check size={12} style={{ marginLeft: "auto" }} />}
-            </button>
-          ))}
+          {periodOptions.map(p => {
+            const lbl = PERIOD_OPTIONS.find(o => o.key === p)?.label ?? p;
+            return (
+              <button key={p} onClick={() => setPeriod(p)} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "9px 14px", fontSize: "13px", cursor: "pointer", width: "100%", background: period === p ? "rgba(59,130,246,0.12)" : "transparent", color: period === p ? "#3B82F6" : "var(--color-text-primary)", border: "none" }}>
+                {lbl} {period === p && <Check size={12} style={{ marginLeft: "auto" }} />}
+              </button>
+            );
+          })}
         </SimpleDropdown>
       </div>
 
@@ -1221,6 +1307,56 @@ function OptimizeTab() {
   );
 }
 
+// ─── New Rankings Table ───────────────────────────────────────────────────────
+type RankRow = { label: string; clicks: number; impr: number; ctr: number; pos: number; cPct: number; iPct: number };
+function NewRankingsTable({ queryRows, pageRows, blur }: { queryRows: RankRow[]; pageRows: RankRow[]; blur: boolean }) {
+  const { t } = useLanguage();
+  const [tab, setTab] = useState<"Queries" | "Pages">("Queries");
+  const rows = tab === "Queries" ? queryRows : pageRows;
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+        <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("newRankings")}</h3>
+        <TabBar tabs={["Queries", "Pages"]} active={tab} onChange={v => setTab(v as "Queries" | "Pages")} />
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ padding: "32px 0", textAlign: "center", color: "var(--color-text-secondary)", fontSize: "13px" }}>
+          No new rankings this period
+        </div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
+              <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500 }}></th>
+              <th style={{ textAlign: "left", padding: "8px 8px", color: C.clicks,      fontWeight: 600, fontSize: "12px" }}>{t("clicks")}</th>
+              <th style={{ textAlign: "left", padding: "8px 8px", color: C.impressions, fontWeight: 600, fontSize: "12px" }}>{t("impressions")}</th>
+              <th style={{ textAlign: "left", padding: "8px 8px", color: C.ctr,         fontWeight: 600, fontSize: "12px" }}>CTR</th>
+              <th style={{ textAlign: "left", padding: "8px 0",  color: C.position,     fontWeight: 600, fontSize: "12px" }}>{t("position")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 8).map((r, i) => (
+              <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
+                <td style={{ padding: "7px 8px 7px 0", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "12px", color: "var(--color-text-primary)" }}>
+                  <span style={blur ? { filter: "blur(5px)", userSelect: "none", display: "inline-block" } : {}}>
+                    <span style={{ fontSize: "10px", background: "#10B981", color: "#fff", borderRadius: "4px", padding: "1px 5px", marginRight: "5px", fontWeight: 700 }}>NEW</span>
+                    {r.label}
+                  </span>
+                </td>
+                <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-primary)", fontWeight: 500 }}>{r.clicks}</td>
+                <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>{fmtK(r.impr)}</td>
+                <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>{r.ctr}%</td>
+                <td style={{ padding: "7px 0",  fontSize: "12px", color: "var(--color-text-secondary)" }}>{r.pos}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 // ─── Stub tab ──────────────────────────────────────────────────────────────────
 function StubTab({ label }: { label: string }) {
   return (
@@ -1247,7 +1383,9 @@ export default function SitePage() {
   const TAB_KEYS = ["dashboard", "ga4", "indexing", "annotations", "optimize", "settings"] as const;
   type TabKey = typeof TAB_KEYS[number];
   const [activeTab, setActiveTab] = useState<TabKey>("dashboard");
-  const [period, setPeriod]       = useState("7 days");
+  const [period, setPeriod]       = useState("7d");
+  const [siteData, setSiteData]   = useState<any>(null);
+  const [dataLoading, setDataLoading] = useState(true);
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: "dashboard",   label: t("tabDashboard") },
@@ -1258,27 +1396,63 @@ export default function SitePage() {
     { key: "settings",    label: t("tabSettings") },
   ];
 
-  const chartData    = useMemo(() => makeChartData(7), []);
-  const queryRows    = useMemo(() => makeRows(QUERIES, 20), []);
-  const pageRows     = useMemo(() => makeRows(PAGES, 80), []);
-  const countryRows  = useMemo(() => makeCountryRows(), []);
+  const [syncing, setSyncing] = useState(false);
 
-  // Summary metrics
-  const totalClicks  = chartData.reduce((s, d) => s + d.clicks, 0);
-  const totalImpr    = chartData.reduce((s, d) => s + d.impressions, 0);
-  const avgCtr       = +(chartData.reduce((s, d) => s + d.ctr, 0) / chartData.length).toFixed(1);
-  const avgPos       = +(chartData.reduce((s, d) => s + d.position, 0) / chartData.length).toFixed(1);
+  // On mount: trigger a background sync so data is fresh on next visit
+  useEffect(() => {
+    setSyncing(true);
+    fetch('/api/gsc/sync', { method: 'POST' })
+      .catch(() => {})
+      .finally(() => setSyncing(false));
+  }, [domain]); // re-run only when switching sites, not on period change
 
-  // Query counting mock
-  const qcData = chartData.map(d => ({
-    date: d.date,
-    "1-3":   rndInt(1, 5),
-    "4-10":  rndInt(3, 15),
-    "11-20": rndInt(5, 20),
-    "21+":   rndInt(8, 30),
-  }));
+  // Fetch data from DB whenever domain or period changes
+  useEffect(() => {
+    setDataLoading(true);
+    fetch(`/api/gsc/site?domain=${encodeURIComponent(domain)}&period=${period}`)
+      .then(r => r.json())
+      .then(d => setSiteData(d))
+      .catch(() => {})
+      .finally(() => setDataLoading(false));
+  }, [domain, period]);
 
-  const periodOptions = ["7 days", "14 days", "28 days", "3 months", "6 months", "12 months"];
+  // Real data or empty fallback
+  const chartData = useMemo(() => {
+    if (siteData?.chartData?.length > 0) return siteData.chartData;
+    // Empty fallback (no fake numbers)
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(); d.setDate(d.getDate() - 7 + i);
+      return { date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }), clicks: 0, impressions: 0, ctr: 0, position: 0, clicksC: 0, impressionsC: 0, ctrC: 0, positionC: 0 };
+    });
+  }, [siteData]);
+
+  const queryRows      = useMemo(() => siteData?.queries        ?? [], [siteData]);
+  const pageRows       = useMemo(() => siteData?.pages          ?? [], [siteData]);
+  const countryRows    = useMemo(() => siteData?.countries      ?? [], [siteData]);
+  const deviceRowsReal = useMemo(() => siteData?.devices        ?? [], [siteData]);
+  const newQueryRows   = useMemo(() => siteData?.newQueries     ?? [], [siteData]);
+  const newPageRows    = useMemo(() => siteData?.newPages       ?? [], [siteData]);
+  const positionBuckets = useMemo(() => siteData?.positionBuckets ?? { '1-3': 0, '4-10': 0, '11-20': 0, '21+': 0 }, [siteData]);
+
+  // Summary from API (or zeros)
+  const summary = siteData?.summary ?? { clicks: { value: 0, change: 0 }, impressions: { value: 0, change: 0 }, ctr: { value: 0, change: 0 }, position: { value: 0, change: 0 } };
+
+  const totalClicks = summary.clicks.value;
+  const totalImpr   = summary.impressions.value;
+  const avgCtr      = summary.ctr.value;
+  const avgPos      = summary.position.value;
+
+  // Query counting: real position distribution from GSC queries
+  const qcBuckets = [
+    { label: "1-3",   color: "#F59E0B", count: positionBuckets["1-3"]   },
+    { label: "4-10",  color: "#1e40af", count: positionBuckets["4-10"]  },
+    { label: "11-20", color: "#3B82F6", count: positionBuckets["11-20"] },
+    { label: "21+",   color: "#93c5fd", count: positionBuckets["21+"]   },
+  ];
+  const qcTotal = qcBuckets.reduce((s, b) => s + b.count, 0);
+
+  const periodLabel = PERIOD_OPTIONS.find(o => o.key === period)?.label ?? period;
+  const periodOptions = PERIOD_OPTIONS.map(o => o.key);
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--color-bg)", color: "var(--color-text-primary)", fontFamily: "Inter, sans-serif" }}>
@@ -1327,13 +1501,24 @@ export default function SitePage() {
               </button>
             ))}
             <select value={period} onChange={e => setPeriod(e.target.value)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid var(--color-border)", fontSize: "12px", color: "var(--color-text-primary)", background: "var(--color-card)", cursor: "pointer", outline: "none" }}>
-              {periodOptions.map(p => (
-                <option key={p} value={p}>{p}</option>
+              {PERIOD_OPTIONS.map(({ key, label }) => (
+                <option key={key} value={key}>{label}</option>
               ))}
             </select>
           </div>
         )}
       </div>
+
+      {/* ── Sync indicator (subtle, bottom-right) ── */}
+      {syncing && (
+        <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "20px", padding: "7px 14px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--color-text-secondary)", boxShadow: "0 4px 16px rgba(0,0,0,0.3)", zIndex: 100, pointerEvents: "none" }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1.2s linear infinite", flexShrink: 0 }}>
+            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+          </svg>
+          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+          Syncing GSC data…
+        </div>
+      )}
 
       {/* ── GA4 tab ── */}
       {activeTab === "ga4" && (
@@ -1363,15 +1548,15 @@ export default function SitePage() {
         {/* Metric summary */}
         <div style={{ display: "flex", alignItems: "center", gap: "28px" }}>
           {[
-            { icon: <Sparkles size={14} style={{ color: C.clicks }} />, val: totalClicks, pct: 54 },
-            { icon: <Eye size={14} style={{ color: C.impressions }} />, val: fmtK(totalImpr), pct: 74 },
-            { icon: <Percent size={14} style={{ color: C.ctr }} />, val: `${avgCtr}`, pct: 11.1 },
-            { icon: <MoveUp size={14} style={{ color: C.position }} />, val: avgPos, pct: 2.7 },
-          ].map(({ icon, val, pct }, i) => (
+            { icon: <Sparkles size={14} style={{ color: C.clicks }} />, val: dataLoading ? "…" : fmtK(totalClicks), chg: summary.clicks.change, invert: false },
+            { icon: <Eye size={14} style={{ color: C.impressions }} />, val: dataLoading ? "…" : fmtK(totalImpr), chg: summary.impressions.change, invert: false },
+            { icon: <Percent size={14} style={{ color: C.ctr }} />, val: dataLoading ? "…" : `${avgCtr}%`, chg: summary.ctr.change, invert: false },
+            { icon: <MoveUp size={14} style={{ color: C.position }} />, val: dataLoading ? "…" : String(avgPos), chg: summary.position.change, invert: true },
+          ].map(({ icon, val, chg, invert }, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
               {icon}
               <span style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text-primary)" }}>{val}</span>
-              <span style={{ fontSize: "13px", color: "#10B981", fontWeight: 600 }}>+{pct}%</span>
+              {!dataLoading && chg !== 0 && <Change pct={chg} invert={invert} />}
             </div>
           ))}
         </div>
@@ -1435,76 +1620,46 @@ export default function SitePage() {
             } title={t("missingBrandedKeywords")} desc={`${t("define")} ${t("activateReportDesc")}`} />
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
               <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("queryCounting")}</h3>
-              <TabBar tabs={["Total", "By Ranking"]} active="Total" onChange={() => {}} />
+              {qcTotal > 0 && <span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{qcTotal} {t("queriesTable").toLowerCase()}</span>}
             </div>
-            <div style={{ display: "flex", gap: "16px", marginBottom: "12px" }}>
-              {[
-                { label: "1-3", color: "#F59E0B", pct: 50 },
-                { label: "4-10", color: "#1e40af", pct: 32 },
-                { label: "11-20", color: "#3B82F6", pct: 56 },
-                { label: "21+", color: "#93c5fd", pct: 19 },
-              ].map(({ label, color, pct }) => (
-                <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                    <div style={{ width: "12px", height: "12px", background: color, borderRadius: "2px" }} />
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-primary)" }}>{label}</span>
-                  </div>
-                  <span style={{ fontSize: "11px", color: "#10B981", fontWeight: 500 }}>+{pct}%</span>
-                </div>
-              ))}
-            </div>
-            <ResponsiveContainer width="100%" height={160}>
-              <AreaChart data={qcData} margin={{ top: 4, right: 0, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--color-text-secondary)" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "var(--color-text-secondary)" }} />
-                <Tooltip contentStyle={{ fontSize: "12px", borderRadius: "8px", background: "var(--color-card)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-                <Area type="monotone" dataKey="1-3"   stroke="#F59E0B" strokeWidth={1.5} fill="rgba(245,158,11,0.15)"  dot={false} />
-                <Area type="monotone" dataKey="4-10"  stroke="#1e40af" strokeWidth={1.5} fill="rgba(30,64,175,0.15)"  dot={false} />
-                <Area type="monotone" dataKey="11-20" stroke="#3B82F6" strokeWidth={1.5} fill="rgba(59,130,246,0.15)" dot={false} />
-                <Area type="monotone" dataKey="21+"   stroke="#93c5fd" strokeWidth={1.5} fill="rgba(147,197,253,0.15)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {qcTotal === 0 ? (
+              <div style={{ height: "160px", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)", fontSize: "13px" }}>
+                {dataLoading ? "Loading…" : "No data yet"}
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {qcBuckets.map(({ label, color, count }) => {
+                  const barPct = qcTotal > 0 ? Math.round((count / qcTotal) * 100) : 0;
+                  return (
+                    <div key={label}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <div style={{ width: "10px", height: "10px", background: color, borderRadius: "2px", flexShrink: 0 }} />
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-primary)" }}>Position {label}</span>
+                        </div>
+                        <span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{count} <span style={{ color }}>{barPct}%</span></span>
+                      </div>
+                      <div style={{ height: "8px", background: "var(--color-border)", borderRadius: "4px", overflow: "hidden" }}>
+                        <div style={{ height: "100%", width: `${barPct}%`, background: color, borderRadius: "4px", transition: "width 0.6s ease" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
         {/* Countries + New Rankings */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px" }}>
           <CountryTable rows={countryRows} />
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)" }}>{t("newRankings")}</h3>
-              <TabBar tabs={["Queries", "Pages"]} active="Queries" onChange={() => {}} />
-            </div>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                  <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500 }}></th>
-                  <th style={{ textAlign: "left", padding: "8px 8px", color: C.clicks, fontWeight: 600, fontSize: "12px" }}>{t("clicks")}</th>
-                  <th style={{ textAlign: "left", padding: "8px 8px", color: C.impressions, fontWeight: 600, fontSize: "12px" }}>{t("impressions")}</th>
-                  <th style={{ textAlign: "left", padding: "8px 8px", color: C.ctr, fontWeight: 600, fontSize: "12px" }}>CTR</th>
-                  <th style={{ textAlign: "left", padding: "8px 0", color: C.position, fontWeight: 600, fontSize: "12px" }}>{t("position")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {QUERIES.slice(0, 8).map((q, i) => (
-                  <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.03)" : "transparent" }}>
-                    <td style={{ padding: "7px 8px 7px 0", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: "12px", color: "var(--color-text-primary)" }}>{q}</td>
-                    <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-primary)" }}>0 <span style={{ color: "var(--color-text-secondary)" }}>~0%</span></td>
-                    <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>{rndInt(1, 40)} <span style={{ color: "#10B981" }}>+∞%</span></td>
-                    <td style={{ padding: "7px 8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>0%</td>
-                    <td style={{ padding: "7px 0", fontSize: "12px", color: "var(--color-text-secondary)" }}>{+rnd(5, 60).toFixed(1)} <span style={{ color: "var(--color-text-secondary)" }}>~0</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <NewRankingsTable queryRows={newQueryRows} pageRows={newPageRows} blur={blur} />
         </div>
 
         {/* Devices */}
-        <DeviceTable />
+        <DeviceTable rows={deviceRowsReal} />
 
         {/* Footer */}
         <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
