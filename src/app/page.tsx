@@ -409,9 +409,45 @@ export default function PortfolioPage() {
   const [filterDimension, setFilterDimension] = useState<"query"|"page"|"country"|"device"|null>(null);
   const [filterText, setFilterText] = useState("");
 
-  // On mount: trigger background sync (discovers new sites from all linked accounts + updates metrics)
+  type SyncStatus = "idle" | "syncing" | "done";
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
+  const [syncedAt, setSyncedAt]     = useState<Date | null>(null);
+  const [newSitesFound, setNewSitesFound] = useState(0);
+
+  const refetchPortfolio = (p = period) => {
+    fetch(`/api/gsc/portfolio?period=${p}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.sites) {
+          setNewSitesFound(prev => Math.max(0, (d.sites as any[]).length - sites.length));
+          setSites(d.sites);
+        }
+      })
+      .catch(() => {});
+  };
+
+  // On mount: trigger background sync then auto-refresh data
   useEffect(() => {
+    setSyncStatus("syncing");
     fetch('/api/gsc/sync', { method: 'POST' }).catch(() => {});
+
+    // Refetch data after 45s (gives sync time to process first batch of sites)
+    const t1 = setTimeout(() => {
+      refetchPortfolio();
+    }, 45_000);
+
+    // Mark done after 90s
+    const t2 = setTimeout(() => {
+      setSyncStatus("done");
+      setSyncedAt(new Date());
+      refetchPortfolio();
+      // Hide "done" after 8s
+      const t3 = setTimeout(() => setSyncStatus("idle"), 8_000);
+      return () => clearTimeout(t3);
+    }, 90_000);
+
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Fetch real data from portfolio API whenever period changes
@@ -890,6 +926,39 @@ export default function PortfolioPage() {
         </div>
 
         {PeriodDd}
+
+        {/* ── Sync status indicator ── */}
+        {syncStatus !== "idle" && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: "7px",
+            padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600,
+            background: syncStatus === "done" ? "rgba(16,185,129,0.12)" : "rgba(59,130,246,0.1)",
+            border: `1px solid ${syncStatus === "done" ? "rgba(16,185,129,0.3)" : "rgba(59,130,246,0.25)"}`,
+            color: syncStatus === "done" ? "#10B981" : "#60a5fa",
+            transition: "all 0.4s",
+            whiteSpace: "nowrap",
+          }}>
+            {syncStatus === "syncing" ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  style={{ animation: "gsc-spin 1.2s linear infinite", flexShrink: 0 }}>
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+                </svg>
+                <style>{`@keyframes gsc-spin { to { transform: rotate(360deg); } }`}</style>
+                Синхронизация GSC…
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                {newSitesFound > 0
+                  ? `Готово · +${newSitesFound} ${newSitesFound === 1 ? "сайт" : "сайтов"}`
+                  : `Готово · ${syncedAt?.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}`}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Active filter chips */}
