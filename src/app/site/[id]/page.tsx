@@ -1959,13 +1959,28 @@ export default function SitePage() {
       .finally(() => setClusterLoading(false));
   };
 
-  // On mount: trigger a background sync so data is fresh on next visit
-  useEffect(() => {
+  const [syncedAt, setSyncedAt] = useState<Date | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const s = localStorage.getItem('gsc_synced_at');
+    return s ? new Date(s) : null;
+  });
+
+  const handleSync = () => {
+    if (syncing) return;
     setSyncing(true);
     fetch('/api/gsc/sync', { method: 'POST' })
+      .then(() => {
+        const now = new Date();
+        setSyncedAt(now);
+        localStorage.setItem('gsc_synced_at', now.toISOString());
+        // Refetch data after sync
+        return fetch(`/api/gsc/site?domain=${encodeURIComponent(domain)}&period=${period}`);
+      })
+      .then(r => r?.json())
+      .then(d => { if (d?.chartData) setSiteData(d); })
       .catch(() => {})
       .finally(() => setSyncing(false));
-  }, [domain]); // re-run only when switching sites, not on period change
+  };
 
   // Fetch data from DB whenever domain or period changes
   useEffect(() => {
@@ -2115,6 +2130,18 @@ export default function SitePage() {
             })}
             {/* Period */}
             <PeriodDropdown period={period} onChange={setPeriod} />
+            {/* Manual sync button */}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              title={syncedAt ? `Last synced: ${syncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ${syncedAt.toLocaleDateString([], { month: 'short', day: 'numeric' })}` : 'Sync GSC data'}
+              style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 11px", borderRadius: "8px", border: "1px solid var(--color-border)", background: syncing ? "rgba(59,130,246,0.08)" : "var(--color-card)", color: syncing ? "#3B82F6" : "var(--color-text-secondary)", fontSize: "12px", fontWeight: 500, cursor: syncing ? "not-allowed" : "pointer", whiteSpace: "nowrap" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, animation: syncing ? "spin 1.2s linear infinite" : "none" }}>
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+              {syncing ? "Syncing…" : syncedAt ? syncedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Sync"}
+            </button>
           </div>
         )}
       </div>
@@ -2137,16 +2164,6 @@ export default function SitePage() {
         <AddNoteModal onClose={() => setShowAddNoteModal(false)} onSave={_note => { setShowAddNoteModal(false); setActiveTab("annotations"); }} />
       )}
 
-      {/* ── Sync indicator (subtle, bottom-right) ── */}
-      {syncing && (
-        <div style={{ position: "fixed", bottom: "20px", left: "50%", transform: "translateX(-50%)", background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "20px", padding: "7px 14px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: "var(--color-text-secondary)", boxShadow: "0 4px 16px rgba(0,0,0,0.3)", zIndex: 100, pointerEvents: "none" }}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1.2s linear infinite", flexShrink: 0 }}>
-            <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-          </svg>
-          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-          Syncing GSC data…
-        </div>
-      )}
 
       {/* ── GA4 tab ── */}
       {activeTab === "ga4" && (

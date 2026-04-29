@@ -414,7 +414,11 @@ export default function PortfolioPage() {
 
   type SyncStatus = "idle" | "syncing" | "done";
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
-  const [syncedAt, setSyncedAt]     = useState<Date | null>(null);
+  const [syncedAt, setSyncedAt]     = useState<Date | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const s = localStorage.getItem('gsc_synced_at');
+    return s ? new Date(s) : null;
+  });
   const [newSitesFound, setNewSitesFound] = useState(0);
 
   const portfolioUrl = (p = period) =>
@@ -432,43 +436,29 @@ export default function PortfolioPage() {
       .catch(() => {});
   };
 
-  // On mount:
-  // 1. Discover all sites from all linked accounts (fast ~5s)
-  // 2. Trigger background data sync
+  // On mount: discover sites only (fast, no sync)
   useEffect(() => {
-    setSyncStatus("syncing");
-
-    // Step 1: site discovery — lists GSC sites from all linked accounts, creates missing ones in DB
     fetch('/api/gsc/sites')
       .then(r => r.json())
-      .then(d => {
-        // Show discovered sites immediately (even before metrics are synced)
-        if (d.sites?.length) setSites(d.sites);
-
-        // Step 2: background data sync (fills in historical metrics)
-        fetch('/api/gsc/sync', { method: 'POST' }).catch(() => {});
-
-        // Refetch with real metrics after 45s
-        const t1 = setTimeout(() => refetchPortfolio(), 45_000);
-
-        // Mark done after 90s
-        const t2 = setTimeout(() => {
-          setSyncStatus("done");
-          setSyncedAt(new Date());
-          refetchPortfolio();
-          const t3 = setTimeout(() => setSyncStatus("idle"), 8_000);
-          return () => clearTimeout(t3);
-        }, 90_000);
-
-        return () => { clearTimeout(t1); clearTimeout(t2); };
-      })
-      .catch(() => {
-        // Discovery failed — try sync anyway
-        fetch('/api/gsc/sync', { method: 'POST' }).catch(() => {});
-        setSyncStatus("idle");
-      });
+      .then(d => { if (d.sites?.length) setSites(d.sites); })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSync = () => {
+    if (syncStatus === "syncing") return;
+    setSyncStatus("syncing");
+    fetch('/api/gsc/sync', { method: 'POST' })
+      .then(() => refetchPortfolio())
+      .then(() => {
+        const now = new Date();
+        setSyncedAt(now);
+        localStorage.setItem('gsc_synced_at', now.toISOString());
+        setSyncStatus("done");
+        setTimeout(() => setSyncStatus("idle"), 5_000);
+      })
+      .catch(() => setSyncStatus("idle"));
+  };
 
   // Fetch real data from portfolio API whenever period or comparison settings change
   useEffect(() => {
@@ -956,38 +946,37 @@ export default function PortfolioPage() {
 
         {PeriodDd}
 
-        {/* ── Sync status indicator ── */}
-        {syncStatus !== "idle" && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: "7px",
-            padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600,
-            background: syncStatus === "done" ? "rgba(16,185,129,0.12)" : "rgba(59,130,246,0.1)",
-            border: `1px solid ${syncStatus === "done" ? "rgba(16,185,129,0.3)" : "rgba(59,130,246,0.25)"}`,
-            color: syncStatus === "done" ? "#10B981" : "#60a5fa",
-            transition: "all 0.4s",
-            whiteSpace: "nowrap",
-          }}>
-            {syncStatus === "syncing" ? (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-                  style={{ animation: "gsc-spin 1.2s linear infinite", flexShrink: 0 }}>
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                </svg>
-                <style>{`@keyframes gsc-spin { to { transform: rotate(360deg); } }`}</style>
-                Синхронизация GSC…
-              </>
-            ) : (
-              <>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-                {newSitesFound > 0
-                  ? `Готово · +${newSitesFound} ${newSitesFound === 1 ? "сайт" : "сайтов"}`
-                  : `Готово · ${syncedAt?.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}`}
-              </>
-            )}
-          </div>
-        )}
+        {/* ── Manual sync button ── */}
+        <button
+          onClick={handleSync}
+          disabled={syncStatus === "syncing"}
+          title={syncedAt ? `Последняя синхронизация: ${syncedAt.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })} ${syncedAt.toLocaleDateString("ru", { day: "numeric", month: "short" })}` : "Синхронизировать данные GSC"}
+          style={{
+            display: "flex", alignItems: "center", gap: "6px",
+            padding: "6px 12px", borderRadius: "8px", fontSize: "12px", fontWeight: 500,
+            border: "1px solid var(--color-border)",
+            background: syncStatus === "done" ? "rgba(16,185,129,0.08)" : syncStatus === "syncing" ? "rgba(59,130,246,0.08)" : "var(--color-card)",
+            color: syncStatus === "done" ? "#10B981" : syncStatus === "syncing" ? "#60a5fa" : "var(--color-text-secondary)",
+            cursor: syncStatus === "syncing" ? "not-allowed" : "pointer",
+            whiteSpace: "nowrap", transition: "all 0.2s",
+          }}
+        >
+          {syncStatus === "done" ? (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              style={{ flexShrink: 0, animation: syncStatus === "syncing" ? "gsc-spin 1.2s linear infinite" : "none" }}>
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+          )}
+          <style>{`@keyframes gsc-spin { to { transform: rotate(360deg); } }`}</style>
+          {syncStatus === "syncing" ? "Синхронизация…"
+            : syncStatus === "done" ? `Готово · ${syncedAt?.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}`
+            : syncedAt ? syncedAt.toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })
+            : "Sync GSC"}
+        </button>
       </div>
 
       {/* Active filter chips */}
