@@ -474,115 +474,205 @@ function ClusterTable({ title, data, blur = false }: { title: string; data: Clus
 }
 
 // ─── One-Click Setup Modal ────────────────────────────────────────────────────
-type SetupCluster = { name: string; rules: string; count: number; selected: boolean };
-type SetupGroup   = { name: string; rules: string; count: number; selected: boolean };
+type SetupItem = { name: string; rules: string; count: number; selected: boolean; editingName?: boolean };
+
+// ─── Editable item card (cluster or group) ────────────────────────────────────
+function SetupCard({ item, index, onToggle, onRename, onDelete, onPatternChange, ruleType }: {
+  item: SetupItem; index: number;
+  onToggle: () => void; onRename: (name: string) => void;
+  onDelete: () => void; onPatternChange: (val: string) => void;
+  ruleType: 'cluster' | 'group';
+}) {
+  const [editName, setEditName] = useState(false);
+  const [nameVal, setNameVal]   = useState(item.name);
+
+  let patterns: string[] = [];
+  let patternType = 'contains';
+  try { const r = JSON.parse(item.rules); patterns = r[0]?.values ?? []; patternType = r[0]?.type ?? 'contains'; } catch {}
+  const patternStr = patterns.join(' | ');
+
+  return (
+    <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '12px 14px', background: item.selected ? 'var(--color-bg)' : 'transparent', opacity: item.selected ? 1 : 0.55, transition: 'opacity 0.15s' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+        <input type="checkbox" checked={item.selected} onChange={onToggle} style={{ accentColor: '#3B82F6', width: '15px', height: '15px', flexShrink: 0 }} />
+        {editName ? (
+          <input
+            autoFocus value={nameVal}
+            onChange={e => setNameVal(e.target.value)}
+            onBlur={() => { onRename(nameVal || item.name); setEditName(false); }}
+            onKeyDown={e => { if (e.key === 'Enter') { onRename(nameVal || item.name); setEditName(false); } if (e.key === 'Escape') setEditName(false); }}
+            style={{ flex: 1, fontSize: '13px', fontWeight: 600, border: '1px solid #3B82F6', borderRadius: '6px', padding: '2px 8px', background: 'var(--color-card)', color: 'var(--color-text-primary)', outline: 'none' }}
+          />
+        ) : (
+          <span
+            onClick={() => { setEditName(true); setNameVal(item.name); }}
+            title="Click to edit name"
+            style={{ fontSize: '13px', fontWeight: 600, cursor: 'text', flex: 1, borderBottom: '1px dashed transparent' }}
+            onMouseEnter={e => (e.currentTarget.style.borderBottomColor = 'var(--color-text-secondary)')}
+            onMouseLeave={e => (e.currentTarget.style.borderBottomColor = 'transparent')}
+          >
+            {item.name}
+          </span>
+        )}
+        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>{item.count} {ruleType === 'cluster' ? 'queries' : 'pages'}</span>
+        <button onClick={onDelete} title="Remove" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '2px', display: 'flex', opacity: 0.6, flexShrink: 0 }}>
+          <X size={13} />
+        </button>
+      </div>
+      <div style={{ paddingLeft: '23px' }}>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>{patternType}: </span>
+        <input
+          value={patternStr}
+          onChange={e => onPatternChange(e.target.value)}
+          placeholder={ruleType === 'cluster' ? 'keyword1 | keyword2 | keyword3' : '/url-path | /other-path'}
+          style={{ fontSize: '11px', color: 'var(--color-text-secondary)', background: 'transparent', border: 'none', outline: 'none', width: 'calc(100% - 70px)', cursor: 'text', fontFamily: 'monospace' }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function makeEmptyCluster(): SetupItem {
+  return { name: 'New Cluster', rules: JSON.stringify([{ type: 'contains', values: [] }]), count: 0, selected: true };
+}
+function makeEmptyGroup(): SetupItem {
+  return { name: 'New Group', rules: JSON.stringify([{ type: 'contains', values: [] }]), count: 0, selected: true };
+}
+
+function updateRules(item: SetupItem, patternStr: string): SetupItem {
+  const values = patternStr.split('|').map(s => s.trim()).filter(Boolean);
+  try {
+    const r = JSON.parse(item.rules);
+    r[0].values = values;
+    return { ...item, rules: JSON.stringify(r) };
+  } catch {
+    return { ...item, rules: JSON.stringify([{ type: 'contains', values }]) };
+  }
+}
 
 function SetupModal({ domain, siteDbId, onClose, onApplied }: {
   domain: string; siteDbId: string;
   onClose: () => void; onApplied: () => void;
 }) {
-  const [step, setStep]             = useState<1 | 2 | 3 | 4>(1);
-  const [loading, setLoading]       = useState(false);
-  const [clusters, setClusters]     = useState<SetupCluster[]>([]);
-  const [groups, setGroups]         = useState<SetupGroup[]>([]);
-  const [saving, setSaving]         = useState(false);
-  const [error, setError]           = useState('');
+  const [step, setStep]         = useState<1 | 2 | 3 | 4>(1);
+  const [loading, setLoading]   = useState(false);
+  const [clusters, setClusters] = useState<SetupItem[]>([]);
+  const [groups, setGroups]     = useState<SetupItem[]>([]);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+  const [aiUsed, setAiUsed]     = useState(false);
+
+  const [aiProvider, setAiProvider] = useState<string>('anthropic');
+  const [aiApiKey, setAiApiKey] = useState<string>('');
+
+  useEffect(() => {
+    setAiProvider(localStorage.getItem('aiProvider') || 'anthropic');
+    setAiApiKey(localStorage.getItem('aiApiKey') || '');
+  }, []);
 
   const generate = async () => {
-    setStep(2);
-    setLoading(true);
-    setError('');
+    setStep(2); setLoading(true); setError('');
     try {
       const res = await fetch('/api/gsc/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId: siteDbId }),
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId: siteDbId, aiProvider, aiApiKey }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed');
       setClusters((data.clusters ?? []).map((c: any) => ({ ...c, selected: true })));
       setGroups((data.groups ?? []).map((g: any) => ({ ...g, selected: true })));
+      setAiUsed(data.clusters?.[0]?.aiGenerated ?? false);
       setStep(3);
-    } catch (e: any) {
-      setError(e.message);
-      setStep(1);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e: any) { setError(e.message); setStep(1); }
+    finally { setLoading(false); }
   };
 
   const apply = async () => {
     setSaving(true);
     try {
-      const selClusters = clusters.filter(c => c.selected);
-      const selGroups   = groups.filter(g => g.selected);
       await Promise.all([
-        fetch('/api/gsc/clusters', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ siteId: siteDbId, clusters: selClusters }),
-        }),
-        fetch('/api/gsc/groups', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ siteId: siteDbId, groups: selGroups }),
-        }),
+        fetch('/api/gsc/clusters', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ siteId: siteDbId, clusters: clusters.filter(c => c.selected) }) }),
+        fetch('/api/gsc/groups',   { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ siteId: siteDbId, groups: groups.filter(g => g.selected) }) }),
       ]);
       onApplied();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
+    } catch (e: any) { setError(e.message); }
+    finally { setSaving(false); }
   };
 
-  const parseValues = (rules: string): string[] => {
-    try {
-      const parsed: { values: string[] }[] = JSON.parse(rules);
-      return parsed.flatMap(r => r.values ?? []);
-    } catch { return []; }
-  };
+  const updCluster = (i: number, fn: (x: SetupItem) => SetupItem) => setClusters(p => p.map((x, j) => j === i ? fn(x) : x));
+  const updGroup   = (i: number, fn: (x: SetupItem) => SetupItem) => setGroups(p => p.map((x, j) => j === i ? fn(x) : x));
 
-  const overlay: React.CSSProperties = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  };
-  const modal: React.CSSProperties = {
-    background: 'var(--color-card)', borderRadius: '16px', width: '720px', maxWidth: '95vw',
-    maxHeight: '85vh', display: 'flex', flexDirection: 'column',
-    boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
-    border: '1.5px solid rgba(59,130,246,0.35)',
-  };
+  const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' };
+  const modal: React.CSSProperties   = { background: 'var(--color-card)', borderRadius: '16px', width: '740px', maxWidth: '95vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.35)', border: '1.5px solid rgba(59,130,246,0.35)' };
+
+  const stepTitle = ['', 'Select site', 'Generating…', 'Topic Clusters', 'Content Groups'][step];
+  const totalSelected = (step === 3 ? clusters : groups).filter(x => x.selected).length;
 
   return (
     <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={modal}>
         {/* Header */}
-        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Sparkles size={18} color="#3B82F6" />
-            <span style={{ fontSize: '16px', fontWeight: 700 }}>One Click Setup</span>
+            <Sparkles size={17} color="#3B82F6" />
+            <span style={{ fontSize: '15px', fontWeight: 700 }}>One Click Setup</span>
+            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 400 }}>— {stepTitle}</span>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '4px' }}>
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {aiUsed && step >= 3 && (
+              <span style={{ fontSize: '11px', background: 'rgba(139,92,246,0.12)', color: '#8B5CF6', borderRadius: '20px', padding: '3px 10px', fontWeight: 600 }}>✦ AI</span>
+            )}
+            <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '4px' }}><X size={17} /></button>
+          </div>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '18px 24px' }}>
           {/* Step 1 */}
           {step === 1 && (
             <div>
               <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-                Generate Topic Clusters and Content Groups for your site using your existing GSC data.
+                Automatically generate Topic Clusters and Content Groups from your GSC data using AI.
               </p>
-              <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--color-bg)' }}>
-                <input type="checkbox" defaultChecked style={{ accentColor: '#3B82F6', width: '16px', height: '16px', flexShrink: 0 }} readOnly />
+              <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--color-bg)', marginBottom: '16px' }}>
+                <input type="checkbox" defaultChecked readOnly style={{ accentColor: '#3B82F6', width: '16px', height: '16px', flexShrink: 0 }} />
+                <Globe size={14} color="var(--color-text-secondary)" />
                 <span style={{ fontSize: '13px', fontWeight: 500 }}>{domain}</span>
               </div>
+
+              <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '13px 16px', background: 'var(--color-bg)' }}>
+                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Sparkles size={14} color="#8B5CF6" /> AI Provider Configuration
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '12px', lineHeight: 1.5 }}>
+                  Choose an AI provider to generate clusters. AI models understand semantic meaning better than algorithmic rules. If left blank, it will try to use the server's environment variables or fall back to an algorithmic mode.
+                </p>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <select
+                    value={aiProvider}
+                    onChange={(e) => { setAiProvider(e.target.value); localStorage.setItem('aiProvider', e.target.value); }}
+                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="anthropic">Anthropic (Claude)</option>
+                    <option value="openai">OpenAI (GPT)</option>
+                    <option value="gemini">Google (Gemini)</option>
+                    <option value="openrouter">OpenRouter</option>
+                  </select>
+                  <input
+                    type="password"
+                    placeholder="API Key (e.g. sk-ant-...)"
+                    value={aiApiKey}
+                    onChange={(e) => { setAiApiKey(e.target.value); localStorage.setItem('aiApiKey', e.target.value); }}
+                    style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
               {error && <p style={{ marginTop: '12px', fontSize: '12px', color: '#EF4444' }}>{error}</p>}
             </div>
           )}
 
-          {/* Step 2 — loading */}
+          {/* Step 2 */}
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: '16px' }}>
               <div style={{ width: '40px', height: '40px', border: '3px solid var(--color-border)', borderTopColor: '#3B82F6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -591,82 +681,81 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
             </div>
           )}
 
-          {/* Step 3 — review clusters */}
+          {/* Step 3 — clusters */}
           {step === 3 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {clusters.length === 0 ? (
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>No clusters generated. Try a longer date range by running the site sync first.</p>
-              ) : clusters.map((c, i) => (
-                <div key={i} style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '12px 14px', background: c.selected ? 'var(--color-bg)' : 'transparent', opacity: c.selected ? 1 : 0.5 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                    <input type="checkbox" checked={c.selected} onChange={e => setClusters(p => p.map((x, j) => j === i ? { ...x, selected: e.target.checked } : x))} style={{ accentColor: '#3B82F6', width: '15px', height: '15px', flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{c.name}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>{c.count} queries</span>
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', paddingLeft: '25px', wordBreak: 'break-all' }}>
-                    <span style={{ fontWeight: 600 }}>contains: </span>
-                    {parseValues(c.rules).slice(0, 20).join(' | ')}
-                    {parseValues(c.rules).length > 20 && ` | +${parseValues(c.rules).length - 20} more`}
-                  </div>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                Click a name to rename it. Edit patterns (pipe-separated). Uncheck to exclude.
+              </p>
+              {clusters.map((c, i) => (
+                <SetupCard key={i} item={c} index={i} ruleType="cluster"
+                  onToggle={() => updCluster(i, x => ({ ...x, selected: !x.selected }))}
+                  onRename={name => updCluster(i, x => ({ ...x, name }))}
+                  onDelete={() => setClusters(p => p.filter((_, j) => j !== i))}
+                  onPatternChange={val => updCluster(i, x => updateRules(x, val))}
+                />
               ))}
+              <button
+                onClick={() => setClusters(p => [...p, makeEmptyCluster()])}
+                style={{ marginTop: '4px', padding: '8px', borderRadius: '10px', border: '1px dashed var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                + Add cluster manually
+              </button>
             </div>
           )}
 
-          {/* Step 4 — review groups */}
+          {/* Step 4 — groups */}
           {step === 4 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {groups.length === 0 ? (
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>No content groups generated.</p>
-              ) : groups.map((g, i) => (
-                <div key={i} style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '12px 14px', background: g.selected ? 'var(--color-bg)' : 'transparent', opacity: g.selected ? 1 : 0.5 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                    <input type="checkbox" checked={g.selected} onChange={e => setGroups(p => p.map((x, j) => j === i ? { ...x, selected: e.target.checked } : x))} style={{ accentColor: '#3B82F6', width: '15px', height: '15px', flexShrink: 0 }} />
-                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{g.name}</span>
-                    <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>{g.count} pages</span>
-                  </div>
-                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', paddingLeft: '25px', wordBreak: 'break-all' }}>
-                    <span style={{ fontWeight: 600 }}>{JSON.parse(g.rules)?.[0]?.type ?? 'contains'}: </span>
-                    {parseValues(g.rules).slice(0, 15).join(' | ')}
-                    {parseValues(g.rules).length > 15 && ` | +${parseValues(g.rules).length - 15} more`}
-                  </div>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                Click a name to rename it. Edit URL patterns (pipe-separated). Uncheck to exclude.
+              </p>
+              {groups.map((g, i) => (
+                <SetupCard key={i} item={g} index={i} ruleType="group"
+                  onToggle={() => updGroup(i, x => ({ ...x, selected: !x.selected }))}
+                  onRename={name => updGroup(i, x => ({ ...x, name }))}
+                  onDelete={() => setGroups(p => p.filter((_, j) => j !== i))}
+                  onPatternChange={val => updGroup(i, x => updateRules(x, val))}
+                />
               ))}
+              <button
+                onClick={() => setGroups(p => [...p, makeEmptyGroup()])}
+                style={{ marginTop: '4px', padding: '8px', borderRadius: '10px', border: '1px dashed var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                + Add group manually
+              </button>
               {error && <p style={{ fontSize: '12px', color: '#EF4444' }}>{error}</p>}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <button
             onClick={() => step > 1 && step !== 2 && setStep(s => (s - 1) as any)}
-            style={{ padding: '8px 18px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', fontWeight: 500, cursor: step <= 1 || step === 2 ? 'not-allowed' : 'pointer', opacity: step <= 1 || step === 2 ? 0.4 : 1 }}
             disabled={step <= 1 || step === 2}
+            style={{ padding: '7px 18px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', fontWeight: 500, cursor: step <= 1 || step === 2 ? 'not-allowed' : 'pointer', opacity: step <= 1 || step === 2 ? 0.4 : 1 }}
           >
             Previous
           </button>
+          {step >= 3 && (
+            <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+              {totalSelected} selected
+            </span>
+          )}
           {step < 3 ? (
-            <button
-              onClick={step === 1 ? generate : undefined}
-              disabled={loading}
-              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}
-            >
+            <button onClick={step === 1 ? generate : undefined} disabled={loading}
+              style={{ padding: '7px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>
               Next
             </button>
           ) : step === 3 ? (
-            <button
-              onClick={() => setStep(4)}
-              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
-            >
-              Next
+            <button onClick={() => setStep(4)}
+              style={{ padding: '7px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+              Next →
             </button>
           ) : (
-            <button
-              onClick={apply}
-              disabled={saving}
-              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#3B82F6', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}
-            >
+            <button onClick={apply} disabled={saving}
+              style={{ padding: '7px 20px', borderRadius: '8px', border: 'none', background: '#3B82F6', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
               {saving ? 'Saving…' : 'Apply Setup'}
             </button>
           )}

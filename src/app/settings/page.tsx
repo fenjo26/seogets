@@ -495,6 +495,39 @@ function PreferencesSection({ user }: { user: any }) {
           </div>
         </div>
       </SectionCard>
+      {/* AI Configuration */}
+      <SectionCard>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>AI Configuration</h2>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px 16px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
+          <div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>AI Provider</div>
+            <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "12px", lineHeight: 1.5 }}>
+              Configure your preferred AI provider to power features like automatic topic clustering and content grouping. Keys are saved securely in your browser.
+            </p>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <select
+                defaultValue={typeof window !== 'undefined' ? localStorage.getItem('aiProvider') || 'anthropic' : 'anthropic'}
+                onChange={(e) => { if (typeof window !== 'undefined') localStorage.setItem('aiProvider', e.target.value); }}
+                style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-card)", color: "var(--color-text-primary)", fontSize: "13px", outline: "none", cursor: "pointer", minWidth: "160px" }}
+              >
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="openai">OpenAI (GPT)</option>
+                <option value="gemini">Google (Gemini)</option>
+                <option value="openrouter">OpenRouter</option>
+              </select>
+              <input
+                type="password"
+                placeholder="API Key (e.g. sk-...)"
+                defaultValue={typeof window !== 'undefined' ? localStorage.getItem('aiApiKey') || '' : ''}
+                onChange={(e) => { if (typeof window !== 'undefined') localStorage.setItem('aiApiKey', e.target.value); }}
+                style={{ flex: 1, padding: "8px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-card)", color: "var(--color-text-primary)", fontSize: "13px", outline: "none" }}
+              />
+            </div>
+          </div>
+        </div>
+      </SectionCard>
     </div>
   );
 }
