@@ -439,10 +439,20 @@ export default function PortfolioPage() {
 
   // On mount: discover sites only (fast, no sync)
   useEffect(() => {
+    let ignore = false;
     fetch('/api/gsc/sites')
       .then(r => r.json())
-      .then(d => { if (d.sites?.length) setSites(d.sites); })
+      .then(d => { 
+        if (!ignore && d.sites?.length) {
+          setSites(prev => {
+            // Only update if we don't already have data, to avoid overwriting portfolio metrics
+            if (prev.length > 0 && prev[0].hasData) return prev;
+            return d.sites;
+          });
+        }
+      })
       .catch(() => {});
+    return () => { ignore = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
