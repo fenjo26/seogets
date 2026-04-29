@@ -126,7 +126,8 @@ function fmtVal(m: Metric, v: number) {
   return String(v);
 }
 function pctStr(curr: number, prev: number, invert = false) {
-  if (prev === 0) return curr > 0 ? "↑∞%" : "";
+  if (prev === 0) return "";           // no prev data — show nothing
+  if (curr === 0 && prev === 0) return "";
   const p = Math.round(((curr - prev) / prev) * 100);
   const up = invert ? p < 0 : p >= 0;
   return `${up ? "↑" : "↓"}${Math.abs(p)}%`;
@@ -279,11 +280,13 @@ function ChartTooltip({ active, payload }: any) {
     ctr:         "CTR",
     position:    t("avgPosition"),
   };
+  const noPrev = (v: number) => v === 0;
+  const prevStr = (v: number, fmt: (n: number) => string) => noPrev(v) ? "—" : fmt(v);
   const rows: { m: Metric; curr: string; prev: string; pct: string }[] = [
-    { m: "clicks",      curr: String(d.clicks),    prev: String(d.clicksC),     pct: pctStr(d.clicks, d.clicksC) },
-    { m: "impressions", curr: fmtK(d.impressions), prev: fmtK(d.impressionsC),  pct: pctStr(d.impressions, d.impressionsC) },
-    { m: "ctr",         curr: `${d.ctr}%`,         prev: `${d.ctrC}%`,          pct: pctStr(d.ctr, d.ctrC) },
-    { m: "position",    curr: String(d.position),  prev: String(d.positionC),   pct: pctStr(d.position, d.positionC, true) },
+    { m: "clicks",      curr: String(d.clicks),    prev: prevStr(d.clicksC,     n => String(n)),          pct: pctStr(d.clicks,      d.clicksC) },
+    { m: "impressions", curr: fmtK(d.impressions), prev: prevStr(d.impressionsC, n => fmtK(n)),           pct: pctStr(d.impressions, d.impressionsC) },
+    { m: "ctr",         curr: `${d.ctr}%`,         prev: noPrev(d.ctrC) ? "—" : `${d.ctrC}%`,            pct: pctStr(d.ctr,         d.ctrC) },
+    { m: "position",    curr: String(d.position),  prev: noPrev(d.positionC) ? "—" : String(d.positionC), pct: pctStr(d.position,    d.positionC, true) },
   ];
   return (
     <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: "10px", padding: "10px 14px", fontSize: "12px", color: "#111", minWidth: "210px", boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
@@ -854,9 +857,11 @@ export default function PortfolioPage() {
                     {m==="clicks"?"✦":m==="impressions"?"◉":m==="ctr"?"%":"↑"}
                   </span>
                   <span style={{fontWeight:600}}>{fmtVal(m,value)}</span>
-                  <span style={{fontSize:"10px",color:good?"#10B981":"#EF4444",fontWeight:500}}>
-                    {arrow}{Math.abs(change)}%
-                  </span>
+                  {change !== 0 && (
+                    <span style={{fontSize:"10px",color:good?"#10B981":"#EF4444",fontWeight:500}}>
+                      {arrow}{Math.abs(change)}%
+                    </span>
+                  )}
                 </div>
               );
             })}

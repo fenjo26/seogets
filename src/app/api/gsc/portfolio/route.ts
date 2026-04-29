@@ -19,7 +19,7 @@ function periodToDays(period: string): number {
 }
 
 function pct(curr: number, prev: number) {
-  if (prev === 0) return curr > 0 ? 100 : 0;
+  if (prev === 0) return 0;   // no previous data — can't compute real change
   return Math.round(((curr - prev) / prev) * 100);
 }
 
@@ -89,12 +89,37 @@ export async function GET(req: Request) {
         return arr.map(v => hi === lo ? 50 : Math.round(((v - lo) / (hi - lo)) * 85 + 5));
       };
 
+      // Build a date → row map for the previous period
+      const prevByDate = new Map<string, typeof prevRows[number]>();
+      for (const r of prevRows) {
+        prevByDate.set(r.date.toISOString().split('T')[0], r);
+      }
+
       const clicks      = currRows.map(r => r.clicks);
       const impressions = currRows.map(r => r.impressions);
       const ctrs        = currRows.map(r => +((r.ctr * 100).toFixed(2)));
       const positions   = currRows.map(r => +r.position.toFixed(1));
 
-      const nC = norm(clicks), nI = norm(impressions), nT = norm(ctrs), nP = norm(positions);
+      // For each current row, look up the corresponding prev-period row
+      // by shifting the date back by `days`
+      const clicksC: number[] = [];
+      const impressionsC: number[] = [];
+      const ctrsC: number[] = [];
+      const positionsC: number[] = [];
+
+      for (const r of currRows) {
+        const shifted = new Date(r.date);
+        shifted.setDate(shifted.getDate() - days);
+        const key = shifted.toISOString().split('T')[0];
+        const prev = prevByDate.get(key);
+        clicksC.push(prev?.clicks ?? 0);
+        impressionsC.push(prev?.impressions ?? 0);
+        ctrsC.push(prev ? +((prev.ctr * 100).toFixed(2)) : 0);
+        positionsC.push(prev ? +prev.position.toFixed(1) : 0);
+      }
+
+      const nC  = norm(clicks),      nI  = norm(impressions),  nT  = norm(ctrs),   nP  = norm(positions);
+      const nCC = norm(clicksC),      nIC = norm(impressionsC), nTC = norm(ctrsC),  nPC = norm(positionsC);
 
       const data = currRows.map((r, i) => ({
         date: r.date.toISOString().split('T')[0],
@@ -102,10 +127,12 @@ export async function GET(req: Request) {
         impressions: r.impressions,
         ctr: ctrs[i],
         position: positions[i],
-        // comparison placeholders (prev period aligned to end)
-        clicksC: 0, impressionsC: 0, ctrC: 0, positionC: 0,
-        cN: nC[i], iN: nI[i], tN: nT[i], pN: nP[i],
-        cCN: 0, iCN: 0, tCN: 0, pCN: 0,
+        clicksC:      clicksC[i],
+        impressionsC: impressionsC[i],
+        ctrC:         ctrsC[i],
+        positionC:    positionsC[i],
+        cN: nC[i],  iN: nI[i],  tN: nT[i],  pN: nP[i],
+        cCN: nCC[i], iCN: nIC[i], tCN: nTC[i], pCN: nPC[i],
       }));
 
       return { ...site, data, summary, hasData: currRows.length > 0 };
