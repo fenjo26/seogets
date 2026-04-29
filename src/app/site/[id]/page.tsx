@@ -554,6 +554,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
   domain: string; siteDbId: string;
   onClose: () => void; onApplied: () => void;
 }) {
+  const { t } = useLanguage();
   const [step, setStep]         = useState<1 | 2 | 3 | 4>(1);
   const [loading, setLoading]   = useState(false);
   const [clusters, setClusters] = useState<SetupItem[]>([]);
@@ -605,7 +606,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
   const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' };
   const modal: React.CSSProperties   = { background: 'var(--color-card)', borderRadius: '16px', width: '740px', maxWidth: '95vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 24px 60px rgba(0,0,0,0.35)', border: '1.5px solid rgba(59,130,246,0.35)' };
 
-  const stepTitle = ['', 'Select site', 'Generating…', 'Topic Clusters', 'Content Groups'][step];
+  const stepTitle = ['', t("selectSite"), t("generating"), t("topicClusters"), t("contentGroups")][step];
   const totalSelected = (step === 3 ? clusters : groups).filter(x => x.selected).length;
 
   return (
@@ -615,7 +616,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
         <div style={{ padding: '18px 24px 14px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Sparkles size={17} color="#3B82F6" />
-            <span style={{ fontSize: '15px', fontWeight: 700 }}>One Click Setup</span>
+            <span style={{ fontSize: '15px', fontWeight: 700 }}>{t("oneClickSetup")}</span>
             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)', fontWeight: 400 }}>— {stepTitle}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -632,7 +633,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
           {step === 1 && (
             <div>
               <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
-                Automatically generate Topic Clusters and Content Groups from your GSC data using AI.
+                {t("setupDesc")}
               </p>
               <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '13px 16px', display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--color-bg)', marginBottom: '16px' }}>
                 <input type="checkbox" defaultChecked readOnly style={{ accentColor: '#3B82F6', width: '16px', height: '16px', flexShrink: 0 }} />
@@ -642,10 +643,10 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
 
               <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '13px 16px', background: 'var(--color-bg)' }}>
                 <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Sparkles size={14} color="#8B5CF6" /> AI Provider Configuration
+                  <Sparkles size={14} color="#8B5CF6" /> {t("aiProviderConfig")}
                 </div>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '12px', lineHeight: 1.5 }}>
-                  Choose an AI provider to generate clusters. AI models understand semantic meaning better than algorithmic rules. If left blank, it will try to use the server's environment variables or fall back to an algorithmic mode.
+                  {t("aiProviderDesc")}
                 </p>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <select
@@ -660,7 +661,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
                   </select>
                   <input
                     type="password"
-                    placeholder="API Key (e.g. sk-ant-...)"
+                    placeholder={t("apiKeyPlaceholder")}
                     value={aiApiKey}
                     onChange={(e) => { setAiApiKey(e.target.value); localStorage.setItem('aiApiKey', e.target.value); }}
                     style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
@@ -676,7 +677,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
           {step === 2 && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: '16px' }}>
               <div style={{ width: '40px', height: '40px', border: '3px solid var(--color-border)', borderTopColor: '#3B82F6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-              <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Generating topic clusters…</p>
+              <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>{t("generating")}</p>
               <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
             </div>
           )}
@@ -685,7 +686,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
           {step === 3 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                Click a name to rename it. Edit patterns (pipe-separated). Uncheck to exclude.
+                {t("renameHintCluster")}
               </p>
               {clusters.map((c, i) => (
                 <SetupCard key={i} item={c} index={i} ruleType="cluster"
@@ -699,7 +700,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
                 onClick={() => setClusters(p => [...p, makeEmptyCluster()])}
                 style={{ marginTop: '4px', padding: '8px', borderRadius: '10px', border: '1px dashed var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                + Add cluster manually
+                {t("addClusterManual")}
               </button>
             </div>
           )}
@@ -708,7 +709,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
           {step === 4 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                Click a name to rename it. Edit URL patterns (pipe-separated). Uncheck to exclude.
+                {t("renameHintGroup")}
               </p>
               {groups.map((g, i) => (
                 <SetupCard key={i} item={g} index={i} ruleType="group"
@@ -722,7 +723,7 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
                 onClick={() => setGroups(p => [...p, makeEmptyGroup()])}
                 style={{ marginTop: '4px', padding: '8px', borderRadius: '10px', border: '1px dashed var(--color-border)', background: 'transparent', color: 'var(--color-text-secondary)', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                + Add group manually
+                {t("addGroupManual")}
               </button>
               {error && <p style={{ fontSize: '12px', color: '#EF4444' }}>{error}</p>}
             </div>
@@ -736,27 +737,27 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
             disabled={step <= 1 || step === 2}
             style={{ padding: '7px 18px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', fontWeight: 500, cursor: step <= 1 || step === 2 ? 'not-allowed' : 'pointer', opacity: step <= 1 || step === 2 ? 0.4 : 1 }}
           >
-            Previous
+            {t("btnPrevious")}
           </button>
           {step >= 3 && (
             <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
-              {totalSelected} selected
+              {totalSelected} {t("selectedCount")}
             </span>
           )}
           {step < 3 ? (
             <button onClick={step === 1 ? generate : undefined} disabled={loading}
               style={{ padding: '7px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}>
-              Next
+              {t("btnNext")}
             </button>
           ) : step === 3 ? (
             <button onClick={() => setStep(4)}
               style={{ padding: '7px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
-              Next →
+              {t("btnNextArrow")}
             </button>
           ) : (
             <button onClick={apply} disabled={saving}
               style={{ padding: '7px 20px', borderRadius: '8px', border: 'none', background: '#3B82F6', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}>
-              {saving ? 'Saving…' : 'Apply Setup'}
+              {saving ? t("btnSaving") : t("btnApplySetup")}
             </button>
           )}
         </div>

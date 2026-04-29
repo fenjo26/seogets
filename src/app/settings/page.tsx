@@ -498,13 +498,13 @@ function PreferencesSection({ user }: { user: any }) {
       {/* AI Configuration */}
       <SectionCard>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>AI Configuration</h2>
+          <h2 style={{ fontSize: "15px", fontWeight: 700, color: "#fff" }}>{t("aiConfiguration")}</h2>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "14px 16px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--color-border)" }}>
           <div>
-            <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>AI Provider</div>
+            <div style={{ fontSize: "13px", fontWeight: 600, color: "#fff", marginBottom: "8px" }}>{t("aiProvider")}</div>
             <p style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginBottom: "12px", lineHeight: 1.5 }}>
-              Configure your preferred AI provider to power features like automatic topic clustering and content grouping. Keys are saved securely in your browser.
+              {t("aiConfigDesc")}
             </p>
             <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
               <select
