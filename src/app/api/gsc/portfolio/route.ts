@@ -32,9 +32,9 @@ export async function GET(req: Request) {
   const period = searchParams.get('period') || '7d';
   const days = periodToDays(period);
 
-  // Date windows (GSC lags ~2 days)
+  // GSC 'final' data lags ~3 days
   const endDate = new Date();
-  endDate.setDate(endDate.getDate() - 2);
+  endDate.setDate(endDate.getDate() - 3);
   endDate.setHours(23, 59, 59, 999);
 
   const startDate = new Date(endDate);

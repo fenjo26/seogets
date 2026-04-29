@@ -35,9 +35,9 @@ export async function runGscSync() {
       return;
     }
 
-    // GSC lags ~2 days
+    // GSC 'final' data lags ~3 days
     const endDate = new Date();
-    endDate.setDate(endDate.getDate() - 2);
+    endDate.setDate(endDate.getDate() - 3);
     endDate.setHours(23, 59, 59, 999);
 
     // Recent window: last 30 days (fast, syncs first for all sites)
