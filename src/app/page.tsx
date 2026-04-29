@@ -414,11 +414,12 @@ export default function PortfolioPage() {
 
   type SyncStatus = "idle" | "syncing" | "done";
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
-  const [syncedAt, setSyncedAt]     = useState<Date | null>(() => {
-    if (typeof window === 'undefined') return null;
+  const [syncedAt, setSyncedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
     const s = localStorage.getItem('gsc_synced_at');
-    return s ? new Date(s) : null;
-  });
+    if (s) setSyncedAt(new Date(s));
+  }, []);
   const [newSitesFound, setNewSitesFound] = useState(0);
 
   const portfolioUrl = (p = period) =>
@@ -835,7 +836,7 @@ export default function PortfolioPage() {
           <div style={{display:"flex",alignItems:"center",gap:"6px",minWidth:0}}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} width={16} height={16} alt=""
-              style={{borderRadius:"3px",flexShrink:0}} onError={e=>((e.target as HTMLImageElement).style.display="none")} />
+              style={{borderRadius:"3px",flexShrink:0,filter:blur?"blur(5px)":"none",transition:"filter 0.25s"}} onError={e=>((e.target as HTMLImageElement).style.display="none")} />
             <span style={{fontWeight:500,fontSize:"13px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",filter:blur?"blur(5px)":"none",transition:"filter 0.25s"}}>
               {domain}
             </span>
