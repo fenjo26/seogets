@@ -2223,12 +2223,14 @@ export default function SitePage() {
               <YAxis yAxisId="left"  axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
               <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
               <Tooltip content={<SiteTooltip />} cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }} />
-              {activeMetrics.has("clicks")      && <Line yAxisId="left"  type="monotone" dataKey="clicksC"      stroke={C.clicks}      strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
-              {activeMetrics.has("impressions") && <Line yAxisId="right" type="monotone" dataKey="impressionsC" stroke={C.impressions}  strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
-              {activeMetrics.has("clicks")      && <Area yAxisId="left"  type="monotone" dataKey="clicks"      stroke={C.clicks}      strokeWidth={2}   fill={`url(#sg-clicks)`}      dot={false} />}
-              {activeMetrics.has("impressions") && <Area yAxisId="right" type="monotone" dataKey="impressions" stroke={C.impressions}  strokeWidth={2}   fill={`url(#sg-impressions)`} dot={false} />}
-              {activeMetrics.has("ctr")         && <Line yAxisId="left"  type="monotone" dataKey="ctr"         stroke={C.ctr}          strokeWidth={1.5} dot={false} />}
-              {activeMetrics.has("position")    && <Line yAxisId="left"  type="monotone" dataKey="position"    stroke={C.position}     strokeWidth={1.5} dot={false} />}
+              {activeMetrics.has("clicks")      && <Line yAxisId="left"  type="monotone" dataKey="clicksC"      stroke={C.clicks}       strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
+              {activeMetrics.has("impressions") && <Line yAxisId="right" type="monotone" dataKey="impressionsC" stroke={C.impressions}   strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
+              {activeMetrics.has("ctr")         && <Line yAxisId="left"  type="monotone" dataKey="ctrC"         stroke={C.ctr}           strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
+              {activeMetrics.has("position")    && <Line yAxisId="left"  type="monotone" dataKey="positionC"    stroke={C.position}      strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
+              {activeMetrics.has("clicks")      && <Area yAxisId="left"  type="monotone" dataKey="clicks"      stroke={C.clicks}       strokeWidth={2}   fill={`url(#sg-clicks)`}      dot={false} />}
+              {activeMetrics.has("impressions") && <Area yAxisId="right" type="monotone" dataKey="impressions" stroke={C.impressions}   strokeWidth={2}   fill={`url(#sg-impressions)`} dot={false} />}
+              {activeMetrics.has("ctr")         && <Line yAxisId="left"  type="monotone" dataKey="ctr"         stroke={C.ctr}           strokeWidth={1.5} dot={false} />}
+              {activeMetrics.has("position")    && <Line yAxisId="left"  type="monotone" dataKey="position"    stroke={C.position}      strokeWidth={1.5} dot={false} />}
               {/* Google Update markers */}
               {googleUpdates && GOOGLE_UPDATES
                 .filter(u => chartData.some((d: any) => d.date === u.date))
