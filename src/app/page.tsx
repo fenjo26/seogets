@@ -313,7 +313,7 @@ function ChartTooltip({ active, payload }: any) {
 }
 
 // ─── Multi-metric chart ───────────────────────────────────────────────────────
-function MultiMetricChart({ data, activeMetrics }: { data: Pt[]; activeMetrics: Set<Metric> }) {
+function MultiMetricChart({ data, activeMetrics, prevTrend = true }: { data: Pt[]; activeMetrics: Set<Metric>; prevTrend?: boolean }) {
   const metrics: { m: Metric; nKey: string; cKey: string }[] = [
     { m: "clicks",      nKey: "cN",  cKey: "cCN" },
     { m: "impressions", nKey: "iN",  cKey: "iCN" },
@@ -332,7 +332,7 @@ function MultiMetricChart({ data, activeMetrics }: { data: Pt[]; activeMetrics: 
           ))}
         </defs>
         <Tooltip content={<ChartTooltip />} cursor={{ stroke: "#aaa", strokeWidth: 1, strokeDasharray: "3 2" }} />
-        {metrics.map(({ m, cKey }) => activeMetrics.has(m) && (
+        {prevTrend && metrics.map(({ m, cKey }) => activeMetrics.has(m) && (
           <Area key={`c-${m}`} type="monotone" dataKey={cKey}
             stroke={MC[m].color} strokeWidth={1} strokeDasharray="4 3"
             fill="none" dot={false} isAnimationActive={false} legendType="none" />
@@ -417,8 +417,11 @@ export default function PortfolioPage() {
   const [syncedAt, setSyncedAt]     = useState<Date | null>(null);
   const [newSitesFound, setNewSitesFound] = useState(0);
 
+  const portfolioUrl = (p = period) =>
+    `/api/gsc/portfolio?period=${p}&matchWd=${matchWd}`;
+
   const refetchPortfolio = (p = period) => {
-    fetch(`/api/gsc/portfolio?period=${p}`)
+    fetch(portfolioUrl(p))
       .then(r => r.json())
       .then(d => {
         if (d.sites) {
@@ -467,15 +470,15 @@ export default function PortfolioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch real data from portfolio API whenever period changes
+  // Fetch real data from portfolio API whenever period or comparison settings change
   useEffect(() => {
     setLoading(true);
-    fetch(`/api/gsc/portfolio?period=${period}`)
+    fetch(portfolioUrl(period))
       .then(r => r.json())
       .then(d => { if (d.sites) setSites(d.sites); })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [period]);
+  }, [period, matchWd]);
 
   // sitesWithData = sites already have real .data and .summary from the API
   // Fall back to fake data only if the site has no real metrics yet
@@ -529,7 +532,7 @@ export default function PortfolioPage() {
       if (!domain.includes(searchLower) && !tagsStr.includes(searchLower)) return false;
       if (branded === "branded"    && brandedRatio(s.url) <  0.45) return false;
       if (branded === "nonbranded" && brandedRatio(s.url) >= 0.45) return false;
-      if (filterText.trim()) {
+      if (filterText.trim() && filterText !== "__longtail__") {
         const txt = filterText.trim().toLowerCase();
         if (filterDimension === "country") {
           const tld = domain.split(".").pop() ?? "";
@@ -537,6 +540,11 @@ export default function PortfolioPage() {
         } else if (filterDimension === "query" || filterDimension === "page") {
           if (!domain.includes(txt)) return false;
         }
+      }
+      // Long Tail preset on portfolio: filter sites where avg position > 10 (tail traffic proxy)
+      if (filterDimension === "query" && filterText === "__longtail__") {
+        const pos = s.summary?.position?.value ?? 0;
+        if (pos > 0 && pos <= 10) return false;
       }
       return true;
     })
@@ -727,10 +735,12 @@ export default function PortfolioPage() {
       </div>
 
       {md}{ms(t("presetFilters"))}
-      <button style={mi(branded === "nonbranded" && filterDimension === null)} onClick={() => { setBranded("nonbranded"); setFilterDimension(null); setFilterText(""); }}>
+      <button style={mi(filterDimension === "query" && filterText === "?")}
+        onClick={() => { setFilterDimension("query"); setFilterText("?"); }}>
         <Search size={13}/> {t("peopleAlsoAsk")}
       </button>
-      <button style={mi(false)} onClick={() => { setBranded("nonbranded"); setFilterDimension("query"); setFilterText("how"); }}>
+      <button style={mi(filterDimension === "query" && filterText === "__longtail__")}
+        onClick={() => { setFilterDimension("query"); setFilterText("__longtail__"); }}>
         <FileText size={13}/> {t("longTailKeywords")}
       </button>
 
@@ -857,7 +867,7 @@ export default function PortfolioPage() {
                     {m==="clicks"?"✦":m==="impressions"?"◉":m==="ctr"?"%":"↑"}
                   </span>
                   <span style={{fontWeight:600}}>{fmtVal(m,value)}</span>
-                  {change !== 0 && (
+                  {change !== 0 && showPct && (
                     <span style={{fontSize:"10px",color:good?"#10B981":"#EF4444",fontWeight:500}}>
                       {arrow}{Math.abs(change)}%
                     </span>
@@ -869,7 +879,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* Chart */}
-        <MultiMetricChart data={site.data} activeMetrics={activeMetrics} />
+        <MultiMetricChart data={site.data} activeMetrics={activeMetrics} prevTrend={prevTrend} />
 
         {/* Footer: tags and 4 action icons */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:"2px"}} onClick={e=>e.stopPropagation()}>

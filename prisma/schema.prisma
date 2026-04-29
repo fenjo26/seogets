@@ -64,6 +64,7 @@ model Site {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   metrics       DailyMetric[]
   contentGroups ContentGroup[]
+  topicClusters TopicCluster[]
 
   @@unique([userId, siteId])
 }
@@ -90,7 +91,17 @@ model ContentGroup {
   id        String   @id @default(cuid())
   siteId    String
   name      String
-  rules     String   // JSON containing rules (e.g., contains 'blog/')
+  rules     String   // JSON: [{type:"contains"|"equals", values:string[]}]
+  createdAt DateTime @default(now())
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model TopicCluster {
+  id        String   @id @default(cuid())
+  siteId    String
+  name      String
+  rules     String   // JSON: [{type:"contains"|"equals", values:string[]}]
   createdAt DateTime @default(now())
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)

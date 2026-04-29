@@ -288,6 +288,7 @@ export async function GET(req: Request) {
   }
 
   return NextResponse.json({
+    siteDbId: site.id,
     chartData,
     summary,
     queries,

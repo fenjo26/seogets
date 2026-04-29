@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import {
   ComposedChart, AreaChart, Area, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from "recharts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -33,12 +33,40 @@ const C = {
 
 // ─── Period options (module-level so all sub-components can reference) ────────
 const PERIOD_OPTIONS: { key: string; label: string }[] = [
-  { key: "7d",  label: "7 days"    },
-  { key: "14d", label: "14 days"   },
-  { key: "28d", label: "28 days"   },
-  { key: "3m",  label: "3 months"  },
-  { key: "6m",  label: "6 months"  },
-  { key: "12m", label: "12 months" },
+  { key: "7d",           label: "7 days"        },
+  { key: "14d",          label: "14 days"        },
+  { key: "28d",          label: "28 days"        },
+  { key: "last_week",    label: "Last Week"      },
+  { key: "this_month",   label: "This Month"     },
+  { key: "last_month",   label: "Last Month"     },
+  { key: "this_quarter", label: "This Quarter"   },
+  { key: "last_quarter", label: "Last Quarter"   },
+  { key: "ytd",          label: "Year to Date"   },
+  { key: "3m",           label: "3 months"       },
+  { key: "6m",           label: "6 months"       },
+  { key: "8m",           label: "8 months"       },
+  { key: "12m",          label: "12 months"      },
+  { key: "16m",          label: "16 months"      },
+  { key: "2y",           label: "2 years"        },
+  { key: "3y",           label: "3 years"        },
+];
+
+const PERIOD_GROUPS = [
+  ["7d", "14d", "28d", "last_week", "this_month", "last_month"],
+  ["this_quarter", "last_quarter", "ytd", "3m", "6m", "8m", "12m", "16m"],
+  ["2y", "3y"],
+];
+
+// ─── Known Google algorithm updates ──────────────────────────────────────────
+const GOOGLE_UPDATES: { date: string; label: string; color: string }[] = [
+  { date: "2023-10-05", label: "Oct 2023 Core",         color: "#F59E0B" },
+  { date: "2023-11-02", label: "Nov 2023 Core",         color: "#F59E0B" },
+  { date: "2024-03-05", label: "Mar 2024 Core",         color: "#EF4444" },
+  { date: "2024-06-20", label: "Jun 2024 Core",         color: "#F59E0B" },
+  { date: "2024-08-15", label: "Aug 2024 Core",         color: "#F59E0B" },
+  { date: "2024-11-11", label: "Nov 2024 Core",         color: "#F59E0B" },
+  { date: "2025-03-13", label: "Mar 2025 Core",         color: "#EF4444" },
+  { date: "2025-06-30", label: "Jun 2025 Core",         color: "#F59E0B" },
 ];
 
 // ─── Country code helpers (GSC returns ISO 3166-1 alpha-3 codes) ──────────────
@@ -362,6 +390,292 @@ function Placeholder({ icon, title, desc }: { icon: React.ReactNode; title: stri
   );
 }
 
+// ─── Cluster Table ────────────────────────────────────────────────────────────
+type ClusterRow = {
+  id: string; name: string;
+  clicks: number; impressions: number; ctr: number; position: number;
+  clicksChange: number; impressionsChange: number; ctrChange: number; positionChange: number;
+};
+
+function ClusterTable({ title, data, blur = false }: { title: string; data: ClusterRow[]; blur?: boolean }) {
+  const [tab, setTab]     = useState<'All' | 'Growing' | 'Decaying'>('All');
+  const [sortBy, setSortBy] = useState<'clicks' | 'impressions' | 'ctr' | 'position'>('clicks');
+  const blurStyle: React.CSSProperties = blur ? { filter: 'blur(6px)', userSelect: 'none' } : {};
+
+  const visible = data
+    .filter(r => tab === 'All' || (tab === 'Growing' ? r.clicksChange > 0 : r.clicksChange < 0))
+    .sort((a, b) => {
+      if (sortBy === 'position') return a.position - b.position;
+      return (b as any)[sortBy] - (a as any)[sortBy];
+    });
+
+  const fmtN = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+  const badge = (chg: number, invert = false) => {
+    if (chg === 0) return null;
+    const good = invert ? chg < 0 : chg > 0;
+    return (
+      <span style={{ fontSize: '10px', fontWeight: 600, color: good ? '#10B981' : '#EF4444', marginLeft: '4px' }}>
+        {chg > 0 ? '↑' : '↓'}{Math.abs(chg)}%
+      </span>
+    );
+  };
+
+  const th = (label: string, key: typeof sortBy) => (
+    <th
+      onClick={() => setSortBy(key)}
+      style={{ padding: '6px 8px', fontSize: '11px', fontWeight: 600, color: sortBy === key ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', cursor: 'pointer', whiteSpace: 'nowrap', textAlign: 'right', userSelect: 'none' }}
+    >
+      <span style={{ color: sortBy === key ? '#3B82F6' : undefined }}>{label}</span>
+    </th>
+  );
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+        <h3 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--color-text-primary)' }}>{title}</h3>
+        <div style={{ display: 'flex', gap: '2px', background: 'var(--color-bg)', borderRadius: '8px', padding: '2px', border: '1px solid var(--color-border)' }}>
+          {(['All', 'Growing', 'Decaying'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{ padding: '3px 10px', borderRadius: '6px', border: 'none', fontSize: '11px', fontWeight: 500, cursor: 'pointer', background: tab === t ? 'var(--color-card)' : 'transparent', color: tab === t ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}>
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      {visible.length === 0 ? (
+        <div style={{ padding: '24px', textAlign: 'center', fontSize: '13px', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)', borderRadius: '10px' }}>No data</div>
+      ) : (
+        <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--color-bg)' }}>
+                <th style={{ padding: '6px 10px', textAlign: 'left', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>Name</th>
+                {th('Clicks', 'clicks')}
+                {th('Impressions', 'impressions')}
+                {th('CTR', 'ctr')}
+                {th('Position', 'position')}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((r, i) => (
+                <tr key={r.id} style={{ borderTop: '1px solid var(--color-border)', background: i % 2 === 0 ? 'var(--color-card)' : 'var(--color-bg)' }}>
+                  <td style={{ padding: '7px 10px', fontSize: '12px', fontWeight: 500, color: 'var(--color-text-primary)', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', ...blurStyle }}>{r.name}</td>
+                  <td style={{ padding: '7px 8px', textAlign: 'right', fontSize: '12px', color: 'var(--color-text-primary)', ...blurStyle }}>{fmtN(r.clicks)}{badge(r.clicksChange)}</td>
+                  <td style={{ padding: '7px 8px', textAlign: 'right', fontSize: '12px', color: 'var(--color-text-secondary)', ...blurStyle }}>{fmtN(r.impressions)}{badge(r.impressionsChange)}</td>
+                  <td style={{ padding: '7px 8px', textAlign: 'right', fontSize: '12px', color: 'var(--color-text-secondary)', ...blurStyle }}>{r.ctr}%{badge(r.ctrChange)}</td>
+                  <td style={{ padding: '7px 8px', textAlign: 'right', fontSize: '12px', color: 'var(--color-text-secondary)', ...blurStyle }}>{r.position || '—'}{badge(r.positionChange, true)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── One-Click Setup Modal ────────────────────────────────────────────────────
+type SetupCluster = { name: string; rules: string; count: number; selected: boolean };
+type SetupGroup   = { name: string; rules: string; count: number; selected: boolean };
+
+function SetupModal({ domain, siteDbId, onClose, onApplied }: {
+  domain: string; siteDbId: string;
+  onClose: () => void; onApplied: () => void;
+}) {
+  const [step, setStep]             = useState<1 | 2 | 3 | 4>(1);
+  const [loading, setLoading]       = useState(false);
+  const [clusters, setClusters]     = useState<SetupCluster[]>([]);
+  const [groups, setGroups]         = useState<SetupGroup[]>([]);
+  const [saving, setSaving]         = useState(false);
+  const [error, setError]           = useState('');
+
+  const generate = async () => {
+    setStep(2);
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/gsc/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteId: siteDbId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Failed');
+      setClusters((data.clusters ?? []).map((c: any) => ({ ...c, selected: true })));
+      setGroups((data.groups ?? []).map((g: any) => ({ ...g, selected: true })));
+      setStep(3);
+    } catch (e: any) {
+      setError(e.message);
+      setStep(1);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const apply = async () => {
+    setSaving(true);
+    try {
+      const selClusters = clusters.filter(c => c.selected);
+      const selGroups   = groups.filter(g => g.selected);
+      await Promise.all([
+        fetch('/api/gsc/clusters', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteId: siteDbId, clusters: selClusters }),
+        }),
+        fetch('/api/gsc/groups', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ siteId: siteDbId, groups: selGroups }),
+        }),
+      ]);
+      onApplied();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const parseValues = (rules: string): string[] => {
+    try {
+      const parsed: { values: string[] }[] = JSON.parse(rules);
+      return parsed.flatMap(r => r.values ?? []);
+    } catch { return []; }
+  };
+
+  const overlay: React.CSSProperties = {
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  };
+  const modal: React.CSSProperties = {
+    background: 'var(--color-card)', borderRadius: '16px', width: '720px', maxWidth: '95vw',
+    maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+    boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+    border: '1.5px solid rgba(59,130,246,0.35)',
+  };
+
+  return (
+    <div style={overlay} onClick={e => e.target === e.currentTarget && onClose()}>
+      <div style={modal}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Sparkles size={18} color="#3B82F6" />
+            <span style={{ fontSize: '16px', fontWeight: 700 }}>One Click Setup</span>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-secondary)', padding: '4px' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '20px 24px' }}>
+          {/* Step 1 */}
+          {step === 1 && (
+            <div>
+              <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: '16px' }}>
+                Generate Topic Clusters and Content Groups for your site using your existing GSC data.
+              </p>
+              <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--color-bg)' }}>
+                <input type="checkbox" defaultChecked style={{ accentColor: '#3B82F6', width: '16px', height: '16px', flexShrink: 0 }} readOnly />
+                <span style={{ fontSize: '13px', fontWeight: 500 }}>{domain}</span>
+              </div>
+              {error && <p style={{ marginTop: '12px', fontSize: '12px', color: '#EF4444' }}>{error}</p>}
+            </div>
+          )}
+
+          {/* Step 2 — loading */}
+          {step === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 0', gap: '16px' }}>
+              <div style={{ width: '40px', height: '40px', border: '3px solid var(--color-border)', borderTopColor: '#3B82F6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <p style={{ color: 'var(--color-text-secondary)', fontSize: '14px' }}>Generating topic clusters…</p>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            </div>
+          )}
+
+          {/* Step 3 — review clusters */}
+          {step === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {clusters.length === 0 ? (
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>No clusters generated. Try a longer date range by running the site sync first.</p>
+              ) : clusters.map((c, i) => (
+                <div key={i} style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '12px 14px', background: c.selected ? 'var(--color-bg)' : 'transparent', opacity: c.selected ? 1 : 0.5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                    <input type="checkbox" checked={c.selected} onChange={e => setClusters(p => p.map((x, j) => j === i ? { ...x, selected: e.target.checked } : x))} style={{ accentColor: '#3B82F6', width: '15px', height: '15px', flexShrink: 0 }} />
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{c.name}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>{c.count} queries</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', paddingLeft: '25px', wordBreak: 'break-all' }}>
+                    <span style={{ fontWeight: 600 }}>contains: </span>
+                    {parseValues(c.rules).slice(0, 20).join(' | ')}
+                    {parseValues(c.rules).length > 20 && ` | +${parseValues(c.rules).length - 20} more`}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Step 4 — review groups */}
+          {step === 4 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {groups.length === 0 ? (
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '13px' }}>No content groups generated.</p>
+              ) : groups.map((g, i) => (
+                <div key={i} style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '12px 14px', background: g.selected ? 'var(--color-bg)' : 'transparent', opacity: g.selected ? 1 : 0.5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                    <input type="checkbox" checked={g.selected} onChange={e => setGroups(p => p.map((x, j) => j === i ? { ...x, selected: e.target.checked } : x))} style={{ accentColor: '#3B82F6', width: '15px', height: '15px', flexShrink: 0 }} />
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>{g.name}</span>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginLeft: 'auto' }}>{g.count} pages</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', paddingLeft: '25px', wordBreak: 'break-all' }}>
+                    <span style={{ fontWeight: 600 }}>{JSON.parse(g.rules)?.[0]?.type ?? 'contains'}: </span>
+                    {parseValues(g.rules).slice(0, 15).join(' | ')}
+                    {parseValues(g.rules).length > 15 && ` | +${parseValues(g.rules).length - 15} more`}
+                  </div>
+                </div>
+              ))}
+              {error && <p style={{ fontSize: '12px', color: '#EF4444' }}>{error}</p>}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', flexShrink: 0 }}>
+          <button
+            onClick={() => step > 1 && step !== 2 && setStep(s => (s - 1) as any)}
+            style={{ padding: '8px 18px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', fontWeight: 500, cursor: step <= 1 || step === 2 ? 'not-allowed' : 'pointer', opacity: step <= 1 || step === 2 ? 0.4 : 1 }}
+            disabled={step <= 1 || step === 2}
+          >
+            Previous
+          </button>
+          {step < 3 ? (
+            <button
+              onClick={step === 1 ? generate : undefined}
+              disabled={loading}
+              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer' }}
+            >
+              Next
+            </button>
+          ) : step === 3 ? (
+            <button
+              onClick={() => setStep(4)}
+              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#1e293b', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              onClick={apply}
+              disabled={saving}
+              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#3B82F6', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer' }}
+            >
+              {saving ? 'Saving…' : 'Apply Setup'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Custom Chart Tooltip ─────────────────────────────────────────────────────
 function SiteTooltip({ active, payload, label }: any) {
   const { t } = useLanguage();
@@ -412,6 +726,230 @@ function SimpleDropdown({ trigger, children, align = "right" }: { trigger: React
         <div style={{ position: "absolute", top: "calc(100% + 6px)", [align === "right" ? "right" : "left"]: 0, background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 200, minWidth: "180px", overflow: "hidden" }}
           onClick={() => setOpen(false)}>
           {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Period Dropdown ─────────────────────────────────────────────────────────
+function PeriodDropdown({ period, onChange }: { period: string; onChange: (p: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const label = PERIOD_OPTIONS.find(o => o.key === period)?.label ?? period;
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: open ? "rgba(255,255,255,0.07)" : "var(--color-card)", color: "var(--color-text-primary)", fontSize: "13px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>
+        {label} <ChevronDown size={13} style={{ color: "var(--color-text-secondary)", transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 300, minWidth: "170px", overflow: "hidden", maxHeight: "420px", overflowY: "auto" }}>
+          {PERIOD_GROUPS.map((group, gi) => (
+            <div key={gi}>
+              {gi > 0 && <div style={{ height: "1px", background: "var(--color-border)", margin: "4px 0" }} />}
+              {group.map(key => {
+                const opt = PERIOD_OPTIONS.find(o => o.key === key);
+                if (!opt) return null;
+                const active = period === key;
+                return (
+                  <button key={key} onClick={() => { onChange(key); setOpen(false); }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 14px", fontSize: "13px", width: "100%", background: active ? "rgba(59,130,246,0.12)" : "transparent", color: active ? "#3B82F6" : "var(--color-text-primary)", border: "none", cursor: "pointer", fontWeight: active ? 600 : 400 }}
+                    onMouseOver={e => { if (!active) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                    onMouseOut={e => { if (!active) e.currentTarget.style.background = "transparent"; }}
+                  >
+                    {opt.label}
+                    {active && <Check size={12} />}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Notes Dropdown ───────────────────────────────────────────────────────────
+function NotesDd({ onAddNote, googleUpdates, siteNotes, onToggleGoogleUpdates, onToggleSiteNotes }: {
+  onAddNote: () => void;
+  googleUpdates: boolean; siteNotes: boolean;
+  onToggleGoogleUpdates: () => void; onToggleSiteNotes: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const Toggle = ({ on }: { on: boolean }) => (
+    <div style={{ width: "28px", height: "16px", borderRadius: "8px", background: on ? "#3B82F6" : "var(--color-border)", position: "relative", flexShrink: 0, transition: "background 0.2s" }}>
+      <div style={{ position: "absolute", top: "2px", left: on ? "14px" : "2px", width: "12px", height: "12px", borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+    </div>
+  );
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", padding: "6px 8px", borderRadius: "8px", border: "1px solid var(--color-border)", background: open ? "rgba(255,255,255,0.07)" : "var(--color-card)", color: "var(--color-text-secondary)", cursor: "pointer" }}
+        title="Notes & Annotations">
+        <FileText size={14} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 300, minWidth: "210px", overflow: "hidden" }}>
+          <button onClick={() => { onAddNote(); setOpen(false); }}
+            style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 16px", fontSize: "13px", fontWeight: 600, color: "var(--color-text-primary)", background: "transparent", border: "none", cursor: "pointer" }}
+            onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+            onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+            Add Note
+          </button>
+          <button style={{ display: "block", width: "100%", textAlign: "left", padding: "11px 16px", fontSize: "13px", fontWeight: 600, color: "var(--color-text-primary)", background: "transparent", border: "none", cursor: "pointer" }}
+            onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+            onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+            Manage Notes
+          </button>
+          <div style={{ height: "1px", background: "var(--color-border)", margin: "4px 0" }} />
+          <div style={{ padding: "8px 16px 4px", fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Chart Annotations</div>
+          <button onClick={() => onToggleGoogleUpdates()}
+            style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", padding: "9px 16px", fontSize: "13px", color: "var(--color-text-primary)", background: "transparent", border: "none", cursor: "pointer" }}
+            onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+            onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+            <GoogleIcon size={14} /> <span style={{ flex: 1 }}>Google Updates</span> <Toggle on={googleUpdates} />
+          </button>
+          <button onClick={() => onToggleSiteNotes()}
+            style={{ display: "flex", alignItems: "center", gap: "10px", width: "100%", padding: "9px 16px", fontSize: "13px", color: "var(--color-text-primary)", background: "transparent", border: "none", cursor: "pointer" }}
+            onMouseOver={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}
+            onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+            <FileText size={14} /> <span style={{ flex: 1 }}>Site Notes</span> <Toggle on={siteNotes} />
+          </button>
+          <div style={{ height: "8px" }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Filter Dropdown (Dashboard) ─────────────────────────────────────────────
+function FilterDd({ positionFilter, onPositionFilter, filterDimension, filterText, onDimension, onFilterText, preset, onPreset }: {
+  positionFilter: number | null; onPositionFilter: (v: number | null) => void;
+  filterDimension: string | null; filterText: string;
+  onDimension: (v: string | null) => void; onFilterText: (v: string) => void;
+  preset: string | null; onPreset: (v: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const activeCount = [positionFilter !== null, filterDimension !== null && filterText.trim() !== "", preset !== null].filter(Boolean).length;
+  const isActive = activeCount > 0;
+
+  const divider = <div style={{ height: "1px", background: "var(--color-border)", margin: "4px 0" }} />;
+  const sec = (label: string) => (
+    <div style={{ padding: "10px 14px 4px", fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+  );
+
+  const dims = [
+    { icon: <Search size={14}/>,        v: "query",   label: "Query" },
+    { icon: <FileText size={14}/>,       v: "page",    label: "Page" },
+    { icon: <Globe size={14}/>,          v: "country", label: "Country" },
+    { icon: <Monitor size={14}/>,        v: "device",  label: "Device" },
+    { icon: <BookmarkCheck size={14}/>,  v: "",        label: "Content Group", disabled: true },
+    { icon: <ArrowLeftRight size={14}/>, v: "",        label: "Compare Filters", disabled: true },
+  ];
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "8px", border: `1px solid ${isActive ? "#3B82F6" : "var(--color-border)"}`, background: isActive ? "rgba(59,130,246,0.1)" : open ? "rgba(255,255,255,0.07)" : "var(--color-card)", color: isActive ? "#3B82F6" : "var(--color-text-secondary)", fontSize: "12px", fontWeight: 500, cursor: "pointer" }}>
+        <SlidersHorizontal size={13} />
+        Filter
+        {isActive && <span style={{ fontSize: "10px", background: "#3B82F6", color: "#fff", borderRadius: "10px", padding: "1px 6px", fontWeight: 700 }}>{activeCount}</span>}
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "12px", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 300, minWidth: "260px", overflow: "hidden" }}>
+          {/* Dimension */}
+          {dims.map(({ icon, v, label, disabled }: any) => (
+            <button key={label} disabled={disabled}
+              onClick={() => { if (disabled) return; const same = filterDimension === v; onDimension(same ? null : v); onFilterText(""); }}
+              style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", fontSize: "13px", cursor: disabled ? "default" : "pointer", width: "100%", background: filterDimension === v && !disabled ? "rgba(59,130,246,0.1)" : "transparent", color: disabled ? "var(--color-text-secondary)" : filterDimension === v ? "#3B82F6" : "var(--color-text-primary)", border: "none", opacity: disabled ? 0.4 : 1 }}
+              onMouseOver={e => { if (!disabled && filterDimension !== v) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+              onMouseOut={e => { if (filterDimension !== v) e.currentTarget.style.background = "transparent"; }}>
+              {icon} {label}
+              {filterDimension === v && <Check size={12} style={{ marginLeft: "auto" }} />}
+            </button>
+          ))}
+
+          {/* Text input for Query / Page / Country */}
+          {filterDimension && filterDimension !== "device" && (
+            <div style={{ padding: "4px 14px 12px" }}>
+              <input autoFocus value={filterText} onChange={e => onFilterText(e.target.value)}
+                placeholder={filterDimension === "query" ? "e.g. casino, massage…" : filterDimension === "page" ? "e.g. /blog, /product…" : "e.g. gr, de, us…"}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.06)", color: "var(--color-text-primary)", fontSize: "12px", outline: "none", boxSizing: "border-box" }} />
+            </div>
+          )}
+
+          {/* Device pills */}
+          {filterDimension === "device" && (
+            <div style={{ padding: "4px 14px 12px", display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {["all", "MOBILE", "DESKTOP", "TABLET"].map(v => (
+                <button key={v} onClick={() => onFilterText(v === "all" ? "" : v)}
+                  style={{ padding: "4px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: 500, cursor: "pointer", border: `1px solid ${filterText === (v === "all" ? "" : v) ? "#3B82F6" : "var(--color-border)"}`, background: filterText === (v === "all" ? "" : v) ? "rgba(59,130,246,0.1)" : "transparent", color: filterText === (v === "all" ? "" : v) ? "#3B82F6" : "var(--color-text-secondary)" }}>
+                  {v === "all" ? "All" : v[0] + v.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {divider}
+          {sec("Position Filter")}
+          <div style={{ padding: "4px 14px 10px", display: "flex", gap: "8px" }}>
+            {([10, 20] as const).map(v => {
+              const active = positionFilter === v;
+              return (
+                <button key={v} onClick={() => onPositionFilter(active ? null : v)}
+                  style={{ display: "flex", alignItems: "center", gap: "5px", padding: "5px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, cursor: "pointer", border: `1px solid ${active ? "#F59E0B" : "var(--color-border)"}`, background: active ? "rgba(245,158,11,0.12)" : "transparent", color: "#F59E0B" }}>
+                  <MoveUp size={12} /> Top {v}
+                </button>
+              );
+            })}
+          </div>
+
+          {divider}
+          {sec("Preset Filters")}
+          {[
+            { v: "paa",      label: "People Also Ask",  hint: "queries with ?" },
+            { v: "longtail", label: "Long Tail Keywords", hint: "3+ words" },
+          ].map(({ v, label, hint }) => (
+            <button key={v} onClick={() => { onPreset(preset === v ? null : v); onDimension(null); onFilterText(""); }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 14px", fontSize: "13px", fontWeight: preset === v ? 700 : 600, cursor: "pointer", background: preset === v ? "rgba(59,130,246,0.1)" : "transparent", color: preset === v ? "#3B82F6" : "var(--color-text-primary)", border: "none" }}
+              onMouseOver={e => { if (preset !== v) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
+              onMouseOut={e => { if (preset !== v) e.currentTarget.style.background = "transparent"; }}>
+              <span>{label}</span>
+              <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", fontWeight: 400 }}>{hint}</span>
+            </button>
+          ))}
+
+          {/* Reset */}
+          {isActive && (
+            <>
+              {divider}
+              <button onClick={() => { onPositionFilter(null); onDimension(null); onFilterText(""); onPreset(null); }}
+                style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%", padding: "9px 14px", fontSize: "12px", color: "#EF4444", background: "transparent", border: "none", cursor: "pointer", fontWeight: 500 }}
+                onMouseOver={e => e.currentTarget.style.background = "rgba(239,68,68,0.07)"}
+                onMouseOut={e => e.currentTarget.style.background = "transparent"}>
+                <X size={12} /> Reset filters
+              </button>
+            </>
+          )}
+          <div style={{ height: "4px" }} />
         </div>
       )}
     </div>
@@ -1397,6 +1935,29 @@ export default function SitePage() {
   ];
 
   const [syncing, setSyncing] = useState(false);
+  const [activeMetrics, setActiveMetrics] = useState<Set<Metric>>(new Set(["clicks", "impressions", "ctr", "position"]));
+  const [positionFilter, setPositionFilter] = useState<number | null>(null);
+  const [filterDimension, setFilterDimension] = useState<string | null>(null);
+  const [filterText, setFilterText] = useState("");
+  const [filterPreset, setFilterPreset] = useState<string | null>(null);
+  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
+  const [googleUpdates, setGoogleUpdates] = useState(false);
+  const [siteNotesOn, setSiteNotesOn] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [clusterMetrics, setClusterMetrics] = useState<{ clusters: ClusterRow[]; groups: ClusterRow[] } | null>(null);
+  const [clusterLoading, setClusterLoading] = useState(false);
+  const siteDbId = siteData?.siteDbId ?? '';
+  const toggleMetric = (m: Metric) => setActiveMetrics(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
+
+  const fetchClusterMetrics = (p = period) => {
+    if (!siteDbId) return;
+    setClusterLoading(true);
+    fetch(`/api/gsc/cluster-metrics?siteId=${encodeURIComponent(siteDbId)}&period=${p}`)
+      .then(r => r.json())
+      .then(d => setClusterMetrics(d))
+      .catch(() => {})
+      .finally(() => setClusterLoading(false));
+  };
 
   // On mount: trigger a background sync so data is fresh on next visit
   useEffect(() => {
@@ -1416,6 +1977,11 @@ export default function SitePage() {
       .finally(() => setDataLoading(false));
   }, [domain, period]);
 
+  // Fetch cluster metrics whenever siteDbId or period changes
+  useEffect(() => {
+    if (siteDbId) fetchClusterMetrics(period);
+  }, [siteDbId, period]);
+
   // Real data or empty fallback
   const chartData = useMemo(() => {
     if (siteData?.chartData?.length > 0) return siteData.chartData;
@@ -1426,10 +1992,39 @@ export default function SitePage() {
     });
   }, [siteData]);
 
-  const queryRows      = useMemo(() => siteData?.queries        ?? [], [siteData]);
-  const pageRows       = useMemo(() => siteData?.pages          ?? [], [siteData]);
-  const countryRows    = useMemo(() => siteData?.countries      ?? [], [siteData]);
-  const deviceRowsReal = useMemo(() => siteData?.devices        ?? [], [siteData]);
+  const applyPreset = (rows: any[]) => {
+    if (filterPreset === "paa")      return rows.filter((r: any) => r.label?.includes("?"));
+    if (filterPreset === "longtail") return rows.filter((r: any) => (r.label?.split(" ").length ?? 0) >= 3);
+    return rows;
+  };
+
+  const queryRows = useMemo(() => {
+    let rows = siteData?.queries ?? [];
+    if (positionFilter)                                  rows = rows.filter((r: any) => r.pos <= positionFilter);
+    if (filterDimension === "query" && filterText.trim()) rows = rows.filter((r: any) => r.label?.toLowerCase().includes(filterText.toLowerCase()));
+    rows = applyPreset(rows);
+    return rows;
+  }, [siteData, positionFilter, filterDimension, filterText, filterPreset]);
+
+  const pageRows = useMemo(() => {
+    let rows = siteData?.pages ?? [];
+    if (positionFilter)                                 rows = rows.filter((r: any) => r.pos <= positionFilter);
+    if (filterDimension === "page" && filterText.trim()) rows = rows.filter((r: any) => r.label?.toLowerCase().includes(filterText.toLowerCase()));
+    return rows;
+  }, [siteData, positionFilter, filterDimension, filterText]);
+  const countryRows = useMemo(() => {
+    let rows = siteData?.countries ?? [];
+    if (filterDimension === "country" && filterText.trim())
+      rows = rows.filter((r: any) => r.country?.toLowerCase().includes(filterText.toLowerCase()) || iso3ToName(r.country ?? "").toLowerCase().includes(filterText.toLowerCase()));
+    return rows;
+  }, [siteData, filterDimension, filterText]);
+
+  const deviceRowsReal = useMemo(() => {
+    let rows = siteData?.devices ?? [];
+    if (filterDimension === "device" && filterText)
+      rows = rows.filter((r: any) => r.device?.toUpperCase() === filterText.toUpperCase());
+    return rows;
+  }, [siteData, filterDimension, filterText]);
   const newQueryRows   = useMemo(() => siteData?.newQueries     ?? [], [siteData]);
   const newPageRows    = useMemo(() => siteData?.newPages       ?? [], [siteData]);
   const positionBuckets = useMemo(() => siteData?.positionBuckets ?? { '1-3': 0, '4-10': 0, '11-20': 0, '21+': 0 }, [siteData]);
@@ -1484,30 +2079,63 @@ export default function SitePage() {
           </nav>
         </div>
 
-        {/* Right controls — only shown on Dashboard tab */}
-        {activeTab === "dashboard" && (
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <button style={{ display: "flex", alignItems: "center", gap: "5px", padding: "6px 12px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "var(--color-card)", color: "var(--color-text-secondary)", fontSize: "12px", cursor: "pointer" }}>
-              <SlidersHorizontal size={13} /> {t("filter")}
-            </button>
-            {[
-              { icon: <Sparkles size={13} />, color: C.clicks },
-              { icon: <Eye size={13} />, color: C.impressions },
-              { icon: <Percent size={13} />, color: C.ctr },
-              { icon: <MoveUp size={13} />, color: C.position },
-            ].map(({ icon, color }, i) => (
-              <button key={i} style={{ width: "30px", height: "30px", borderRadius: "6px", border: "1px solid var(--color-border)", background: "var(--color-card)", color, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                {icon}
-              </button>
-            ))}
-            <select value={period} onChange={e => setPeriod(e.target.value)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid var(--color-border)", fontSize: "12px", color: "var(--color-text-primary)", background: "var(--color-card)", cursor: "pointer", outline: "none" }}>
-              {PERIOD_OPTIONS.map(({ key, label }) => (
-                <option key={key} value={key}>{label}</option>
-              ))}
-            </select>
+        {/* Right controls — shown on Dashboard + GA4 tabs */}
+        {(activeTab === "dashboard" || activeTab === "ga4") && (
+          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+            {/* Notes button */}
+            <NotesDd
+              onAddNote={() => setShowAddNoteModal(true)}
+              googleUpdates={googleUpdates}
+              siteNotes={siteNotesOn}
+              onToggleGoogleUpdates={() => setGoogleUpdates(v => !v)}
+              onToggleSiteNotes={() => setSiteNotesOn(v => !v)}
+            />
+            {/* Filter */}
+            <FilterDd
+              positionFilter={positionFilter} onPositionFilter={setPositionFilter}
+              filterDimension={filterDimension} filterText={filterText}
+              onDimension={setFilterDimension} onFilterText={setFilterText}
+              preset={filterPreset} onPreset={setFilterPreset}
+            />
+            {/* Metric toggles */}
+            {([
+              { m: "clicks"      as Metric, icon: <Sparkles size={13}/>, color: C.clicks,      bg: "rgba(59,130,246,0.12)"  },
+              { m: "impressions" as Metric, icon: <Eye      size={13}/>, color: C.impressions, bg: "rgba(139,92,246,0.12)"  },
+              { m: "ctr"         as Metric, icon: <Percent  size={13}/>, color: C.ctr,         bg: "rgba(16,185,129,0.12)"  },
+              { m: "position"    as Metric, icon: <MoveUp   size={13}/>, color: C.position,    bg: "rgba(245,158,11,0.12)"  },
+            ]).map(({ m, icon, color, bg }) => {
+              const on = activeMetrics.has(m);
+              return (
+                <button key={m} onClick={() => toggleMetric(m)}
+                  title={m}
+                  style={{ width: "30px", height: "30px", borderRadius: "6px", border: `1px solid ${on ? color : "var(--color-border)"}`, background: on ? bg : "var(--color-card)", color: on ? color : "var(--color-text-secondary)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s", opacity: on ? 1 : 0.5 }}>
+                  {icon}
+                </button>
+              );
+            })}
+            {/* Period */}
+            <PeriodDropdown period={period} onChange={setPeriod} />
           </div>
         )}
       </div>
+
+      {/* ── One Click Setup modal ── */}
+      {showSetupModal && siteDbId && (
+        <SetupModal
+          domain={domain}
+          siteDbId={siteDbId}
+          onClose={() => setShowSetupModal(false)}
+          onApplied={() => {
+            setShowSetupModal(false);
+            fetchClusterMetrics(period);
+          }}
+        />
+      )}
+
+      {/* ── Add Note modal (triggered from toolbar Notes button) ── */}
+      {showAddNoteModal && (
+        <AddNoteModal onClose={() => setShowAddNoteModal(false)} onSave={_note => { setShowAddNoteModal(false); setActiveTab("annotations"); }} />
+      )}
 
       {/* ── Sync indicator (subtle, bottom-right) ── */}
       {syncing && (
@@ -1578,28 +2206,69 @@ export default function SitePage() {
               <YAxis yAxisId="left"  axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
               <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
               <Tooltip content={<SiteTooltip />} cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }} />
-              <Line yAxisId="left"  type="monotone" dataKey="clicksC"      stroke={C.clicks}      strokeWidth={1} strokeDasharray="4 3" dot={false} legendType="none" />
-              <Line yAxisId="right" type="monotone" dataKey="impressionsC" stroke={C.impressions}  strokeWidth={1} strokeDasharray="4 3" dot={false} legendType="none" />
-              <Area yAxisId="left"  type="monotone" dataKey="clicks"      stroke={C.clicks}      strokeWidth={2} fill={`url(#sg-clicks)`}      dot={false} />
-              <Area yAxisId="right" type="monotone" dataKey="impressions" stroke={C.impressions}  strokeWidth={2} fill={`url(#sg-impressions)`} dot={false} />
-              <Line yAxisId="left"  type="monotone" dataKey="ctr"         stroke={C.ctr}          strokeWidth={1.5} dot={false} />
-              <Line yAxisId="left"  type="monotone" dataKey="position"    stroke={C.position}     strokeWidth={1.5} dot={false} />
+              {activeMetrics.has("clicks")      && <Line yAxisId="left"  type="monotone" dataKey="clicksC"      stroke={C.clicks}      strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
+              {activeMetrics.has("impressions") && <Line yAxisId="right" type="monotone" dataKey="impressionsC" stroke={C.impressions}  strokeWidth={1}   strokeDasharray="4 3" dot={false} legendType="none" />}
+              {activeMetrics.has("clicks")      && <Area yAxisId="left"  type="monotone" dataKey="clicks"      stroke={C.clicks}      strokeWidth={2}   fill={`url(#sg-clicks)`}      dot={false} />}
+              {activeMetrics.has("impressions") && <Area yAxisId="right" type="monotone" dataKey="impressions" stroke={C.impressions}  strokeWidth={2}   fill={`url(#sg-impressions)`} dot={false} />}
+              {activeMetrics.has("ctr")         && <Line yAxisId="left"  type="monotone" dataKey="ctr"         stroke={C.ctr}          strokeWidth={1.5} dot={false} />}
+              {activeMetrics.has("position")    && <Line yAxisId="left"  type="monotone" dataKey="position"    stroke={C.position}     strokeWidth={1.5} dot={false} />}
+              {/* Google Update markers */}
+              {googleUpdates && GOOGLE_UPDATES
+                .filter(u => chartData.some((d: any) => d.date === u.date))
+                .map(u => (
+                  <ReferenceLine key={u.date} x={u.date} yAxisId="left"
+                    stroke={u.color} strokeWidth={1.5} strokeDasharray="3 3"
+                    label={{ value: u.label, position: "top", fontSize: 9, fill: u.color, fontWeight: 600 }} />
+                ))
+              }
             </ComposedChart>
           </ResponsiveContainer>
         </div>
 
         {/* Topic Clusters + Content Groups */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
-          <div>
-            <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px", color: "var(--color-text-primary)" }}>{t("topicClusters")}</h3>
-            <Placeholder icon={<MoveUp size={28} />} title={t("missingTopicClusters")} desc={`${t("define")} ${t("activateReportDesc")}`} />
+        <div>
+          {/* Header row with One Click Setup button */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+            <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+              {clusterLoading ? "Loading…" : (clusterMetrics?.clusters?.length ?? 0) + (clusterMetrics?.groups?.length ?? 0) > 0 ? "" : "No clusters configured yet"}
+            </span>
+            <button
+              onClick={() => setShowSetupModal(true)}
+              style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "8px", border: "1.5px solid rgba(59,130,246,0.5)", background: "rgba(59,130,246,0.08)", color: "#3B82F6", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+            >
+              <Sparkles size={13} />
+              One Click Setup
+            </button>
           </div>
-          <div>
-            <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px", color: "var(--color-text-primary)" }}>{t("contentGroups")}</h3>
-            <Placeholder icon={
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="8" y="8" width="8" height="8" rx="1"/><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><rect x="16" y="16" width="5" height="5" rx="1"/></svg>
-            } title={t("missingContentGroups")} desc={`${t("define")} ${t("activateReportDesc")}`} />
-          </div>
+
+          {/* Tables or placeholders */}
+          {(clusterMetrics?.clusters?.length ?? 0) > 0 || (clusterMetrics?.groups?.length ?? 0) > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+              <ClusterTable
+                title={t("topicClusters")}
+                data={clusterMetrics?.clusters ?? []}
+                blur={blur}
+              />
+              <ClusterTable
+                title={t("contentGroups")}
+                data={clusterMetrics?.groups ?? []}
+                blur={blur}
+              />
+            </div>
+          ) : !clusterLoading ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+              <div>
+                <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px", color: "var(--color-text-primary)" }}>{t("topicClusters")}</h3>
+                <Placeholder icon={<MoveUp size={28} />} title={t("missingTopicClusters")} desc="Click One Click Setup to generate clusters automatically" />
+              </div>
+              <div>
+                <h3 style={{ fontSize: "15px", fontWeight: 700, marginBottom: "12px", color: "var(--color-text-primary)" }}>{t("contentGroups")}</h3>
+                <Placeholder icon={
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="8" y="8" width="8" height="8" rx="1"/><rect x="3" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/><rect x="3" y="16" width="5" height="5" rx="1"/><rect x="16" y="16" width="5" height="5" rx="1"/></svg>
+                } title={t("missingContentGroups")} desc="Click One Click Setup to generate groups automatically" />
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Queries + Pages */}

@@ -29,7 +29,8 @@ export async function GET(req: Request) {
   if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const period = searchParams.get('period') || '7d';
+  const period   = searchParams.get('period')   || '7d';
+  const matchWd  = searchParams.get('matchWd')  === 'true';
   const days = periodToDays(period);
 
   // GSC 'final' data lags ~3 days
@@ -48,6 +49,15 @@ export async function GET(req: Request) {
   const prevStart = new Date(prevEnd);
   prevStart.setDate(prevEnd.getDate() - days + 1);
   prevStart.setHours(0, 0, 0, 0);
+
+  // Match Weekdays: shift comparison period so it ends on the same weekday as endDate
+  if (matchWd) {
+    const shift = (endDate.getDay() - prevEnd.getDay() + 7) % 7;
+    if (shift > 0) {
+      prevEnd.setDate(prevEnd.getDate() + shift);
+      prevStart.setDate(prevStart.getDate() + shift);
+    }
+  }
 
   const sites = await prisma.site.findMany({ where: { userId }, orderBy: { createdAt: 'asc' } });
 
