@@ -157,14 +157,16 @@ export async function GET(req: Request) {
     try { return JSON.parse(def.rules); } catch { return []; }
   };
 
+  type Def = { id: string; name: string; rules: string };
+
   const clusters = aggregate(
     currQ.map(toRow), prevQ.map(toRow),
-    clusterDefs.map(d => ({ id: d.id, name: d.name, rules: parseRules(d) }))
+    (clusterDefs as Def[]).map(d => ({ id: d.id, name: d.name, rules: parseRules(d) }))
   );
 
   const groups = aggregate(
     currP.map(toRow), prevP.map(toRow),
-    groupDefs.map(d => ({ id: d.id, name: d.name, rules: parseRules(d) }))
+    (groupDefs as Def[]).map(d => ({ id: d.id, name: d.name, rules: parseRules(d) }))
   );
 
   return NextResponse.json({ clusters, groups });
