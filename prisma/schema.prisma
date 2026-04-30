@@ -62,9 +62,11 @@ model Site {
   createdAt DateTime @default(now())
 
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  metrics       DailyMetric[]
-  contentGroups ContentGroup[]
-  topicClusters TopicCluster[]
+  metrics               DailyMetric[]
+  contentGroups         ContentGroup[]
+  topicClusters         TopicCluster[]
+  pageInspections       PageInspection[]
+  pageInspectionHistories PageInspectionHistory[]
 
   @@unique([userId, siteId])
 }
@@ -105,4 +107,28 @@ model TopicCluster {
   createdAt DateTime @default(now())
 
   site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+}
+
+model PageInspection {
+  id          String   @id @default(cuid())
+  siteId      String
+  url         String
+  status      String   // e.g. "Submitted and indexed"
+  lastCrawl   DateTime?
+  richResults String?
+  lastInspect DateTime @default(now())
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  @@unique([siteId, url])
+}
+
+model PageInspectionHistory {
+  id          String   @id @default(cuid())
+  siteId      String
+  url         String
+  date        DateTime
+  status      String
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  @@unique([siteId, url, date])
 }

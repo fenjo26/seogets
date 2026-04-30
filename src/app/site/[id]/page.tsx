@@ -565,18 +565,33 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
 
   const [aiProvider, setAiProvider] = useState<string>('anthropic');
   const [aiApiKey, setAiApiKey] = useState<string>('');
+  const [providerStatuses, setProviderStatuses] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setAiProvider(localStorage.getItem('aiProvider') || 'anthropic');
-    setAiApiKey(localStorage.getItem('aiApiKey') || '');
+    const provider = localStorage.getItem('aiProvider') || 'anthropic';
+    const key = localStorage.getItem('aiApiKey') || '';
+    setAiProvider(provider);
+    setAiApiKey(key);
+
+    // Check all provider keys
+    const statuses: Record<string, boolean> = {};
+    for (const id of ['anthropic','openai','gemini','openrouter']) {
+      const k = localStorage.getItem(`aiKey_${id}`) || '';
+      statuses[id] = k.trim().length > 6;
+    }
+    // Also check the legacy key
+    if (key.trim().length > 6) statuses[provider] = true;
+    setProviderStatuses(statuses);
   }, []);
 
   const generate = async () => {
     setStep(2); setLoading(true); setError('');
+    // Resolve the key: prefer per-provider key, fall back to legacy key
+    const resolvedKey = localStorage.getItem(`aiKey_${aiProvider}`) || aiApiKey;
     try {
       const res = await fetch('/api/gsc/setup', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ siteId: siteDbId, aiProvider, aiApiKey }),
+        body: JSON.stringify({ siteId: siteDbId, aiProvider, aiApiKey: resolvedKey }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed');
@@ -641,33 +656,88 @@ function SetupModal({ domain, siteDbId, onClose, onApplied }: {
                 <span style={{ fontSize: '13px', fontWeight: 500 }}>{domain}</span>
               </div>
 
-              <div style={{ border: '1px solid var(--color-border)', borderRadius: '10px', padding: '13px 16px', background: 'var(--color-bg)' }}>
-                <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Sparkles size={14} color="#8B5CF6" /> {t("aiProviderConfig")}
-                </div>
-                <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '12px', lineHeight: 1.5 }}>
-                  {t("aiProviderDesc")}
-                </p>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <select
-                    value={aiProvider}
-                    onChange={(e) => { setAiProvider(e.target.value); localStorage.setItem('aiProvider', e.target.value); }}
-                    style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="anthropic">Anthropic (Claude)</option>
-                    <option value="openai">OpenAI (GPT)</option>
-                    <option value="gemini">Google (Gemini)</option>
-                    <option value="openrouter">OpenRouter</option>
-                  </select>
-                  <input
-                    type="password"
-                    placeholder={t("apiKeyPlaceholder")}
-                    value={aiApiKey}
-                    onChange={(e) => { setAiApiKey(e.target.value); localStorage.setItem('aiApiKey', e.target.value); }}
-                    style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '13px', outline: 'none' }}
-                  />
-                </div>
-              </div>
+              {/* AI provider info box */}
+              {(() => {
+                const anyConfigured = Object.values(providerStatuses).some(Boolean);
+                const PROVIDERS = [
+                  { id: 'anthropic', name: 'Anthropic', color: '#CF6B4A' },
+                  { id: 'openai',    name: 'OpenAI',    color: '#10A37F' },
+                  { id: 'gemini',    name: 'Gemini',    color: '#4285F4' },
+                  { id: 'openrouter',name: 'OpenRouter', color: '#7C3AED' },
+                ];
+                return (
+                  <div style={{ border: `1px solid ${anyConfigured ? 'rgba(139,92,246,0.3)' : 'rgba(245,158,11,0.35)'}`, borderRadius: '10px', padding: '14px 16px', background: anyConfigured ? 'rgba(139,92,246,0.06)' : 'rgba(245,158,11,0.05)' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Sparkles size={14} color={anyConfigured ? '#8B5CF6' : '#F59E0B'} />
+                      {anyConfigured ? 'AI Clustering Enabled' : 'Connect AI for Better Clustering'}
+                    </div>
+                    <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '12px', lineHeight: 1.6 }}>
+                      {anyConfigured
+                        ? 'Your AI provider will analyze your top GSC queries and URLs to create semantically meaningful clusters — far better than keyword matching alone.'
+                        : 'Without an AI key, clustering falls back to keyword frequency matching. Connect a provider for intelligent, semantic topic grouping that understands query intent.'
+                      }
+                    </p>
+
+                    {/* Provider status pills */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: anyConfigured ? '0' : '12px' }}>
+                      {PROVIDERS.map(p => {
+                        const ok = providerStatuses[p.id];
+                        return (
+                          <div key={p.id} style={{
+                            display: 'flex', alignItems: 'center', gap: '5px',
+                            padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: 600,
+                            background: ok ? `${p.color}18` : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${ok ? `${p.color}40` : 'rgba(255,255,255,0.1)'}`,
+                            color: ok ? p.color : 'var(--color-text-secondary)',
+                          }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: ok ? p.color : 'rgba(255,255,255,0.2)', flexShrink: 0 }} />
+                            {p.name}
+                            {ok && <Check size={10} />}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {!anyConfigured && (
+                      <a
+                        href="/settings#ai"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '12px', fontWeight: 600, color: '#F59E0B', textDecoration: 'none', padding: '6px 12px', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}
+                      >
+                        <Sparkles size={12} /> Add API key in Settings
+                      </a>
+                    )}
+
+                    {/* Active provider selector (only when at least one is configured) */}
+                    {anyConfigured && (
+                      <div style={{ marginTop: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>Use:</span>
+                        <select
+                          value={aiProvider}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setAiProvider(v);
+                            localStorage.setItem('aiProvider', v);
+                            const k = localStorage.getItem(`aiKey_${v}`) || localStorage.getItem('aiApiKey') || '';
+                            setAiApiKey(k);
+                            localStorage.setItem('aiApiKey', k);
+                          }}
+                          style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--color-border)', background: 'var(--color-card)', color: 'var(--color-text-primary)', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
+                        >
+                          {PROVIDERS.filter(p => providerStatuses[p.id]).map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+                          · or{' '}
+                          <a href="/settings" target="_blank" rel="noreferrer" style={{ color: 'var(--color-accent-blue)', textDecoration: 'none' }}>manage keys in Settings</a>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {error && <p style={{ marginTop: '12px', fontSize: '12px', color: '#EF4444' }}>{error}</p>}
             </div>
@@ -1177,201 +1247,254 @@ function GA4Tab({ domain, period, setPeriod, periodOptions }: {
 }
 
 // ─── Indexing Tab ─────────────────────────────────────────────────────────────
-const INDEX_COLORS = {
-  indexed:     "#4ADE80",
-  notIndexed:  "#F87171",
-  discovered:  "#FBBF24",
-  unknown:     "#60A5FA",
-};
-
-function makeIndexingData(days = 14) {
-  const today = new Date();
-  return Array.from({ length: days }, (_, i) => {
-    const d = new Date(today); d.setDate(today.getDate() - days + i);
-    const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    return {
-      date: label,
-      indexed:    55 + Math.round(Math.random() * 20),
-      notIndexed:  6 + Math.round(Math.random() * 8),
-      discovered: 55 + Math.round(Math.random() * 20),
-      unknown:    70 + Math.round(Math.random() * 15),
-    };
-  });
+function statusColor(s: string): string {
+  if (/submitted and indexed/i.test(s))           return "#4ADE80";
+  if (/crawled.*not indexed/i.test(s))            return "#FBBF24";
+  if (/discovered.*not indexed/i.test(s))         return "#F97316";
+  if (/unknown/i.test(s))                         return "#60A5FA";
+  if (/excluded|blocked|not found|404|noindex/i.test(s)) return "#F87171";
+  return "#94a3b8";
 }
 
-const INDEX_PAGES = [
-  "/", "/cert-manager", "/cert-manager/acme.cert-manager.io/v1/Ch...",
-  "/cert-manager/acme.cert-manager.io/v1/Or...", "/cert-manager/acme.cert-manager.io/v1/Certificat...",
-  "/cert-manager/acme.cert-manager.io/v1/Certificat...", "/cert-manager/v1/ClusterIssuer",
-  "/cert-manager/v1/Issuer",
-];
-const INDEX_STATUSES = [
-  "Submitted and indexed", "Submitted and indexed", "Submitted and indexed",
-  "Submitted and indexed", "Submitted and indexed", "Submitted and indexed",
-  "Not crawled yet", "Submitted and indexed",
-];
-const LAST_CRAWLS = ["35 days ago\nJuly 19, 2025","40 days ago\nJuly 6, 2025","35 days ago\nJuly 19, 2025","35 days ago\nJuly 19, 2025","35 days ago\nJuly 19, 2025","35 days ago\nJuly 19, 2025","","39 days ago\nJuly 6, 2025"];
-const INSPECTIONS = ["Today\ninspected daily","Yesterday\ninspected daily","Today\ninspected daily","Today\ninspected daily","Today\ninspected daily","Today\ninspected daily","","Yesterday\ninspected daily"];
+function statusCategory(s: string): string {
+  if (/submitted and indexed/i.test(s))           return "indexed";
+  if (/crawled.*not indexed/i.test(s))            return "notIndexed";
+  if (/discovered.*not indexed/i.test(s))         return "discovered";
+  return "other";
+}
 
-function IndexingTab() {
-  const indexData = useMemo(() => makeIndexingData(14), []);
-  const [upgradeOpen, setUpgradeOpen] = useState(true);
+function timeAgo(date: string | Date): string {
+  const ms = Date.now() - new Date(date).getTime();
+  const mins  = Math.floor(ms / 60000);
+  const hours = Math.floor(ms / 3600000);
+  const days  = Math.floor(ms / 86400000);
+  if (mins < 2)   return "just now";
+  if (hours < 1)  return `${mins}m ago`;
+  if (days < 1)   return `${hours}h ago`;
+  return `${days}d ago`;
+}
 
-  const metrics = [
-    { color: INDEX_COLORS.indexed,    value: 66, label: "Submitted and indexed" },
-    { color: INDEX_COLORS.notIndexed, value: 9,  label: "Crawled - currently not indexed" },
-    { color: INDEX_COLORS.discovered, value: 66, label: "Discovered - currently not indexed" },
-    { color: INDEX_COLORS.unknown,    value: 76, label: "URL is unknown to Google" },
+function IndexingTab({ siteDbId, domain }: { siteDbId: string; domain: string }) {
+  const [rows, setRows]           = useState<any[]>([]);
+  const [loading, setLoading]     = useState(false);
+  const [inspecting, setInspecting] = useState(false);
+  const [error, setError]         = useState("");
+  const [inspectedCount, setInspectedCount] = useState<number | null>(null);
+
+  // Load cached inspections on mount / siteDbId change
+  const load = async () => {
+    if (!siteDbId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/gsc/inspect?siteId=${encodeURIComponent(siteDbId)}`);
+      const data = await res.json();
+      setRows(data.inspections ?? []);
+    } catch {}
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [siteDbId]);
+
+  // Run fresh inspection via API
+  const runInspection = async (forceRefresh = false) => {
+    if (!siteDbId || inspecting) return;
+    setInspecting(true); setError(""); setInspectedCount(null);
+    try {
+      const res = await fetch("/api/gsc/inspect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: siteDbId, forceRefresh }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed");
+      setRows(data.inspections ?? []);
+      setInspectedCount(data.inspected ?? 0);
+    } catch (e: any) { setError(e.message); }
+    setInspecting(false);
+  };
+
+  // Summary counts
+  const counts = rows.reduce((acc: Record<string, number>, r) => {
+    const k = statusCategory(r.status);
+    acc[k] = (acc[k] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const SUMMARY = [
+    { key: "indexed",    color: "#4ADE80", label: "Indexed" },
+    { key: "notIndexed", color: "#FBBF24", label: "Crawled – not indexed" },
+    { key: "discovered", color: "#F97316", label: "Discovered – not indexed" },
+    { key: "other",      color: "#94a3b8", label: "Other / Unknown" },
   ];
 
-  return (
-    <div style={{ position: "relative" }}>
-      {/* ── Background content (blurred when modal open) ── */}
-      <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: "24px", filter: upgradeOpen ? "blur(3px)" : "none", pointerEvents: upgradeOpen ? "none" : "auto", transition: "filter 0.2s", userSelect: upgradeOpen ? "none" : "auto" }}>
+  const lastInspectDate = rows.length > 0
+    ? new Date(Math.max(...rows.map(r => new Date(r.lastInspect).getTime())))
+    : null;
 
-        {/* Metric summary */}
-        <div style={{ display: "flex", gap: "32px", flexWrap: "wrap" }}>
-          {metrics.map(({ color, value, label }) => (
-            <div key={label} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+  // Empty state
+  const isEmpty = !loading && rows.length === 0;
+
+  return (
+    <div style={{ padding: "24px 32px", display: "flex", flexDirection: "column", gap: "20px" }}>
+
+      {/* ── Header ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+        <div>
+          <h2 style={{ fontSize: "17px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "2px" }}>
+            Indexing Status
+          </h2>
+          {lastInspectDate && (
+            <span style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>
+              Last inspected {timeAgo(lastInspectDate)} · {rows.length} pages
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          {rows.length > 0 && (
+            <button
+              onClick={() => runInspection(true)}
+              disabled={inspecting}
+              style={{ padding: "7px 14px", borderRadius: "8px", border: "1px solid var(--color-border)", background: "rgba(255,255,255,0.05)", color: "var(--color-text-secondary)", fontSize: "12px", fontWeight: 500, cursor: inspecting ? "not-allowed" : "pointer", opacity: inspecting ? 0.5 : 1 }}
+            >
+              {inspecting ? "Inspecting…" : "↻ Refresh"}
+            </button>
+          )}
+          <button
+            onClick={() => runInspection(false)}
+            disabled={inspecting || loading}
+            style={{ display: "flex", alignItems: "center", gap: "6px", padding: "7px 16px", borderRadius: "8px", border: "none", background: "#3B82F6", color: "#fff", fontSize: "12px", fontWeight: 600, cursor: inspecting || loading ? "not-allowed" : "pointer", opacity: inspecting || loading ? 0.6 : 1 }}
+          >
+            <Search size={13} />
+            {isEmpty ? "Inspect Top Pages" : "Update Cache"}
+          </button>
+        </div>
+      </div>
+
+      {/* ── API rate limit note ── */}
+      <div style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.18)", fontSize: "12px", color: "var(--color-text-secondary)", lineHeight: 1.6 }}>
+        Inspects your top 20 pages by GSC impressions. Results are cached for 24 hours to stay within Google's 2,000 requests/day limit.
+        {inspectedCount !== null && (
+          <span style={{ color: "#4ADE80", fontWeight: 600 }}> · {inspectedCount} pages freshly inspected.</span>
+        )}
+      </div>
+
+      {/* ── Error ── */}
+      {error && (
+        <div style={{ padding: "10px 14px", borderRadius: "8px", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", fontSize: "12px", color: "#f87171" }}>
+          {error}
+        </div>
+      )}
+
+      {/* ── Loading spinner ── */}
+      {(loading || inspecting) && rows.length === 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "40px 0", justifyContent: "center" }}>
+          <div style={{ width: "22px", height: "22px", border: "2px solid var(--color-border)", borderTopColor: "#3B82F6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <span style={{ fontSize: "13px", color: "var(--color-text-secondary)" }}>
+            {inspecting ? "Calling Google URL Inspection API…" : "Loading…"}
+          </span>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      )}
+
+      {/* ── Empty state ── */}
+      {isEmpty && !loading && !inspecting && (
+        <div style={{ textAlign: "center", padding: "60px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+          <Search size={36} color="var(--color-text-secondary)" style={{ opacity: 0.3 }} />
+          <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text-primary)" }}>No inspection data yet</div>
+          <p style={{ fontSize: "13px", color: "var(--color-text-secondary)", maxWidth: "380px", lineHeight: 1.6 }}>
+            Click <strong>Inspect Top Pages</strong> to fetch the indexing status of your top 20 pages directly from Google.
+            <br />Make sure you've synced GSC data first.
+          </p>
+        </div>
+      )}
+
+      {/* ── Summary counts ── */}
+      {rows.length > 0 && (
+        <div style={{ display: "flex", gap: "28px", flexWrap: "wrap" }}>
+          {SUMMARY.map(({ key, color, label }) => (
+            <div key={key} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: color, flexShrink: 0, display: "inline-block" }} />
-                <span style={{ fontSize: "28px", fontWeight: 700, color: "var(--color-text-primary)" }}>{value}</span>
+                <span style={{ fontSize: "26px", fontWeight: 700, color: "var(--color-text-primary)" }}>{counts[key] ?? 0}</span>
               </div>
-              <span style={{ fontSize: "12px", color: "var(--color-text-secondary)", paddingLeft: "14px" }}>{label}</span>
+              <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", paddingLeft: "14px" }}>{label}</span>
             </div>
           ))}
         </div>
+      )}
 
-        {/* Stacked bar chart */}
-        <div style={{ background: "var(--color-card)", borderRadius: "12px", padding: "16px", border: "1px solid var(--color-border)" }}>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={indexData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }} barSize={18}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "var(--color-text-secondary)" }} />
-              <Tooltip
-                contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "10px", fontSize: "12px", color: "var(--color-text-primary)" }}
-                cursor={{ fill: "rgba(255,255,255,0.04)" }}
-              />
-              <Bar dataKey="indexed"    stackId="a" fill={INDEX_COLORS.indexed}    radius={[0,0,0,0]} name="Submitted and indexed" />
-              <Bar dataKey="discovered" stackId="a" fill={INDEX_COLORS.discovered} radius={[0,0,0,0]} name="Discovered - not indexed" />
-              <Bar dataKey="notIndexed" stackId="a" fill={INDEX_COLORS.notIndexed} radius={[0,0,0,0]} name="Crawled - not indexed" />
-              <Bar dataKey="unknown"    stackId="a" fill={INDEX_COLORS.unknown}    radius={[4,4,0,0]} name="Unknown to Google" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Pages table */}
-        <div>
-          <h3 style={{ fontSize: "13px", fontWeight: 700, color: "var(--color-text-secondary)", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "12px" }}>PAGES</h3>
+      {/* ── Pages table ── */}
+      {rows.length > 0 && (
+        <div style={{ background: "var(--color-card)", borderRadius: "12px", border: "1px solid var(--color-border)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
-              <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
-                <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500, fontSize: "12px" }}>URL</th>
-                <th style={{ textAlign: "left", padding: "8px 16px", color: "var(--color-text-secondary)", fontWeight: 500, fontSize: "12px" }}>STATUS</th>
-                <th style={{ textAlign: "left", padding: "8px 16px", color: "var(--color-text-secondary)", fontWeight: 500, fontSize: "12px" }}>LAST CRAWL</th>
-                <th style={{ textAlign: "left", padding: "8px 16px", color: "var(--color-text-secondary)", fontWeight: 500, fontSize: "12px" }}>RICH RESULTS</th>
-                <th style={{ textAlign: "left", padding: "8px 0", color: "var(--color-text-secondary)", fontWeight: 500, fontSize: "12px" }}>LAST INSPECTION</th>
+              <tr style={{ borderBottom: "1px solid var(--color-border)", background: "rgba(255,255,255,0.02)" }}>
+                {["URL", "STATUS", "LAST CRAWL", "RICH RESULTS", "INSPECTED"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "10px 14px", color: "var(--color-text-secondary)", fontWeight: 500, fontSize: "11px", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {INDEX_PAGES.map((url, i) => {
-                const status = INDEX_STATUSES[i];
-                const crawl = LAST_CRAWLS[i];
-                const insp = INSPECTIONS[i];
-                const isIndexed = status === "Submitted and indexed";
-                const [inspLine1, inspLine2] = insp.split("\n");
-                const [crawlLine1, crawlLine2] = crawl.split("\n");
+              {rows.map((row, i) => {
+                const path = row.url.replace(/^https?:\/\/[^/]+/, "") || "/";
+                const rich: string[] = (() => { try { return JSON.parse(row.richResults ?? "[]"); } catch { return []; } })();
+                const crawlDate = row.lastCrawl ? new Date(row.lastCrawl) : null;
+                const crawlStr  = crawlDate
+                  ? crawlDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                  : "—";
                 return (
-                  <tr key={i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "rgba(255,255,255,0.02)" : "transparent" }}>
-                    <td style={{ padding: "10px 0", fontSize: "13px", color: "#3B82F6", maxWidth: "240px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{url}</td>
-                    <td style={{ padding: "10px 16px", fontSize: "12px", color: isIndexed ? "#4ADE80" : status ? "#FBBF24" : "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
-                      {status || <span style={{ color: "#6b7280" }}>Request Indexing ↗</span>}
+                  <tr key={row.id ?? i} style={{ borderBottom: "1px solid var(--color-border)", background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)" }}>
+                    {/* URL */}
+                    <td style={{ padding: "10px 14px", maxWidth: "260px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <a
+                        href={row.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={row.url}
+                        style={{ color: "#3B82F6", textDecoration: "none", fontSize: "12px" }}
+                        onMouseOver={e => (e.currentTarget.style.textDecoration = "underline")}
+                        onMouseOut={e => (e.currentTarget.style.textDecoration = "none")}
+                      >
+                        {path}
+                      </a>
                     </td>
-                    <td style={{ padding: "10px 16px", fontSize: "12px", color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
-                      {crawlLine1 && <div style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{crawlLine1}</div>}
-                      {crawlLine2 && <div style={{ color: "var(--color-text-secondary)", fontSize: "11px" }}>{crawlLine2}</div>}
+                    {/* Status */}
+                    <td style={{ padding: "10px 14px", whiteSpace: "nowrap" }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", fontSize: "12px", color: statusColor(row.status), fontWeight: 500 }}>
+                        <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: statusColor(row.status), flexShrink: 0 }} />
+                        {row.status}
+                      </span>
                     </td>
-                    <td style={{ padding: "10px 16px" }} />
-                    <td style={{ padding: "10px 0", fontSize: "12px", whiteSpace: "nowrap" }}>
-                      {inspLine1 && <div style={{ color: "#3B82F6", fontWeight: 500 }}>{inspLine1}</div>}
-                      {inspLine2 && <div style={{ color: "var(--color-text-secondary)", fontSize: "11px" }}>{inspLine2}</div>}
+                    {/* Last crawl */}
+                    <td style={{ padding: "10px 14px", fontSize: "12px", color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
+                      {crawlDate ? (
+                        <>
+                          <div style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{timeAgo(crawlDate)}</div>
+                          <div style={{ fontSize: "11px" }}>{crawlStr}</div>
+                        </>
+                      ) : "—"}
+                    </td>
+                    {/* Rich results */}
+                    <td style={{ padding: "10px 14px" }}>
+                      {rich.length > 0 ? (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                          {rich.map((r: string) => (
+                            <span key={r} style={{ fontSize: "10px", fontWeight: 600, padding: "2px 7px", borderRadius: "20px", background: "rgba(139,92,246,0.12)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.25)", whiteSpace: "nowrap" }}>
+                              {r}
+                            </span>
+                          ))}
+                        </div>
+                      ) : <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.2)" }}>—</span>}
+                    </td>
+                    {/* Inspected */}
+                    <td style={{ padding: "10px 14px", fontSize: "11px", color: "var(--color-text-secondary)", whiteSpace: "nowrap" }}>
+                      {timeAgo(row.lastInspect)}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        </div>
-      </div>
-
-      {/* ── Upgrade modal overlay ── */}
-      {upgradeOpen && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "flex-start", justifyContent: "center", paddingTop: "32px", zIndex: 10 }}>
-          <div style={{ background: "var(--color-card)", borderRadius: "20px", border: "1px solid var(--color-border)", boxShadow: "0 16px 64px rgba(0,0,0,0.5)", width: "100%", maxWidth: "680px", overflow: "hidden" }}>
-
-            {/* Header */}
-            <div style={{ padding: "32px 32px 20px", textAlign: "center" }}>
-              <h2 style={{ fontSize: "22px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "6px" }}>Indexing Report</h2>
-              <p style={{ fontSize: "14px", color: "var(--color-text-secondary)" }}>Get insights into your site's indexing status</p>
-            </div>
-
-            {/* YouTube preview */}
-            <div style={{ margin: "0 32px 24px", borderRadius: "12px", overflow: "hidden", position: "relative", aspectRatio: "16/9", background: "#000", cursor: "pointer" }}
-              onClick={() => window.open("https://www.youtube.com/@seogets", "_blank")}>
-              {/* Thumbnail mockup */}
-              <div style={{ width: "100%", height: "100%", background: "linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "8px", position: "relative" }}>
-                <div style={{ position: "absolute", inset: 0, opacity: 0.3, background: "repeating-linear-gradient(90deg, rgba(74,222,128,0.3) 0, rgba(74,222,128,0.3) 8px, transparent 8px, transparent 24px)" }} />
-                <div style={{ fontSize: "13px", fontWeight: 700, color: "#fff", background: "rgba(0,0,0,0.6)", padding: "6px 12px", borderRadius: "8px", zIndex: 1, textAlign: "center" }}>
-                  Super Sites (Index Reports, Extended Storage)
-                  <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>SEO Gets</div>
-                </div>
-                {/* Play button */}
-                <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "#EF4444", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, boxShadow: "0 4px 20px rgba(239,68,68,0.5)" }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="#fff"><path d="M8 5v14l11-7z"/></svg>
-                </div>
-                <div style={{ fontSize: "12px", color: "#94a3b8", zIndex: 1 }}>Watch on YouTube</div>
-              </div>
-            </div>
-
-            {/* Super Site Includes */}
-            <div style={{ margin: "0 32px 24px", background: "var(--color-bg)", borderRadius: "12px", padding: "20px 24px", border: "1px solid var(--color-border)" }}>
-              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "var(--color-text-primary)", marginBottom: "16px", textAlign: "center" }}>Super Site Includes</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px 16px" }}>
-                {[
-                  "Extended Storage\n(up to 5 years)",
-                  "Index Reporting\n(up to 5k pages)",
-                  "More than 50,000\nrows of data",
-                  "Historical Indexing\nTrends",
-                  "Filter by Index\nStatus",
-                  "Weekly Email\nAlerts",
-                ].map((feat, i) => {
-                  const [line1, line2] = feat.split("\n");
-                  return (
-                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                      <Check size={14} color="#4ADE80" style={{ flexShrink: 0, marginTop: "2px" }} />
-                      <div>
-                        <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text-primary)" }}>{line1}</div>
-                        <div style={{ fontSize: "12px", color: "var(--color-text-secondary)" }}>{line2}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* CTA button */}
-            <div style={{ padding: "0 32px 32px" }}>
-              <button
-                onClick={() => setUpgradeOpen(false)}
-                style={{ width: "100%", padding: "14px", borderRadius: "12px", border: "none", background: "linear-gradient(90deg, #2563EB 0%, #0891B2 100%)", color: "#fff", fontSize: "16px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 20px rgba(37,99,235,0.4)", transition: "opacity 0.15s" }}
-                onMouseOver={e => (e.currentTarget.style.opacity = "0.9")}
-                onMouseOut={e => (e.currentTarget.style.opacity = "1")}
-              >
-                + Upgrade Sites now
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
@@ -1844,7 +1967,7 @@ const OPTIMIZE_TOOLS = [
   },
 ];
 
-function OptimizeTab() {
+function OptimizeTab({ siteDbId }: { siteDbId: string }) {
   const [active, setActive] = useState<string | null>(null);
   const { blur } = usePrivacy();
   const { t } = useLanguage();
@@ -1912,13 +2035,13 @@ function OptimizeTab() {
                 marginBottom: "12px",
               }}>
                 {id === "cdm" ? (
-                  <ContentDecayMap domain={domain} />
+                  <ContentDecayMap domain={domain} siteDbId={siteDbId} />
                 ) : id === "kc" ? (
-                  <KeywordCannibalization />
+                  <KeywordCannibalization siteDbId={siteDbId} />
                 ) : id === "sdk" ? (
-                  <StrikingDistanceKeywords />
+                  <StrikingDistanceKeywords siteDbId={siteDbId} />
                 ) : id === "ctr" ? (
-                  <CtrBenchmark />
+                  <CtrBenchmark siteDbId={siteDbId} />
                 ) : (
                   <div style={{ padding: "40px 32px", background: "var(--color-card)", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
                     <div style={{ fontSize: "28px" }}>🚧</div>
@@ -2261,7 +2384,7 @@ export default function SitePage() {
       )}
 
       {/* ── Indexing tab ── */}
-      {activeTab === "indexing" && <IndexingTab />}
+      {activeTab === "indexing" && <IndexingTab siteDbId={siteDbId} domain={domain} />}
 
       {/* ── Annotations tab ── */}
       {activeTab === "annotations" && (
@@ -2269,7 +2392,7 @@ export default function SitePage() {
       )}
 
       {/* ── Optimize tab ── */}
-      {activeTab === "optimize" && <OptimizeTab />}
+      {activeTab === "optimize" && <OptimizeTab siteDbId={siteDbId} />}
 
       {/* ── Settings tab ── */}
       {activeTab === "settings" && (
