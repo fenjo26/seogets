@@ -2396,7 +2396,7 @@ export default function SitePage() {
 
       {/* ── Settings tab ── */}
       {activeTab === "settings" && (
-        <SiteSettingsTab domain={domain} />
+        <SiteSettingsTab domain={domain} siteDbId={siteDbId} />
       )}
 
       {/* ── Dashboard tab content ── */}
